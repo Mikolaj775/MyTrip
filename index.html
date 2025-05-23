@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Map Sound Marker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: #04a2c9;}
+    #map { height: 60%; width: 80%; position: relative;left: 10%;}
+    .controls {
+      width: 79%;
+      position: relative;
+      left: 10%;
+      margin-top: 10px;
+      padding: 10px;
+      background: #f0f0f0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 15px;
+    }
+    .info {
+      font-size: 14px;
+      white-space: pre-line;
+    }
+    input[type="file"], input[type="text"] {
+      font-size: 14px;
+      padding: 4px;
+    }
+    button {
+      padding: 6px 12px;
+      font-size: 14px;
+    }
+    #placeList {
+      width: 79%; position: relative;left: 10%;
+      flex: 1;
+      overflow-y: auto;
+      background: #fafafa;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+      user-select: none;
+    }
+    .place-entry {
+      padding: 6px;
+      border-bottom: 1px solid #ddd;
+      font-size: 14px;
+      background: white;
+      cursor: grab;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .place-entry.dragging {
+      opacity: 0.5;
+    }
+    .place-info {
+      flex-grow: 1;
+    }
+    .place-entry strong {
+      display: inline-block;
+      min-width: 100px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="controls">
+  <input type="number" id="latInput" placeholder="Latitude" step="any">
+  <input type="number" id="lngInput" placeholder="Longitude" step="any">
+  <button id="setCoordsBtn">Set Coordinates</button>
+  <div class="info" id="info">No coordinates selected\nNo MP3 selected</div>
+  <input type="text" id="placeNameInput" placeholder="Place name" />
+  <input type="file" id="mp3Input" accept=".mp3">
+  <button id="addPlaceBtn">Add Place</button>
+  <button id="exportZipBtn">Export ZIP</button>
+</div>
+
+<div id="placeList"></div>
+
+<script>
+  const map = L.map('map', {
+  minZoom: 3,
+  maxZoom: 17,
+  
+  maxBounds: [
+    [-85, -180],  // Southwest corner
+    [85, 180]     // Northeast corner
+  ],
+  maxBoundsViscosity: 10 // Prevent dragging outside bounds
+}).setView([20, 0], 2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  let selectedCoords = null;
+  let selectedMP3 = null;
+  let currentMarker = null;
+  let places = [];
+  let soundFiles = {};
+  let nextId = 1; // incremental id counter
+
+  const infoEl = document.getElementById('info');
+  const placeListEl = document.getElementById('placeList');
+  const nameInput = document.getElementById('placeNameInput');
+
+  function updateInfo() {
+    const coordText = selectedCoords ? `Lat: ${selectedCoords[0].toFixed(5)}\nLng: ${selectedCoords[1].toFixed(5)}` : 'No coordinates selected';
+    const mp3Text = selectedMP3 ? `MP3: ${selectedMP3.name}` : 'No MP3 selected';
+    infoEl.textContent = `${coordText}\n${mp3Text}`;
+  }
+document.getElementById('setCoordsBtn').addEventListener('click', () => {
+  const lat = parseFloat(document.getElementById('latInput').value);
+  const lng = parseFloat(document.getElementById('lngInput').value);
+
+  if (isNaN(lat) || isNaN(lng) || lat < -85 || lat > 85 || lng < -180 || lng > 180) {
+    alert('Please enter valid latitude and longitude values.');
+    return;
+  }
+
+  selectedCoords = [lat, lng];
+
+  if (currentMarker) map.removeLayer(currentMarker);
+  currentMarker = L.marker([lat, lng]).addTo(map);
+  map.setView([lat, lng], map.getZoom()); // Optional: center map on new point
+
+  updateInfo();
+});
+  function refreshPlaceList() {
+    placeListEl.innerHTML = '';
+    places.forEach((p, index) => {
+      const div = document.createElement('div');
+      div.className = 'place-entry';
+      div.draggable = true;
+      div.dataset.index = index; // track index for drag and drop
+
+      div.innerHTML = `
+        <div class="place-info">
+          <strong>${p.name}</strong> | Lat: ${p.lat.toFixed(5)}, Lng: ${p.lng.toFixed(5)} | ID: ${p.id}
+        </div>
+      `;
+
+      // Drag event handlers
+      div.addEventListener('dragstart', (e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index);
+        div.classList.add('dragging');
+      });
+
+      div.addEventListener('dragend', () => {
+        div.classList.remove('dragging');
+      });
+
+      div.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      div.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const draggedIndex = Number(e.dataTransfer.getData('text/plain'));
+        const targetIndex = Number(div.dataset.index);
+
+        if (draggedIndex === targetIndex) return;
+
+        // Reorder places array
+        const draggedPlace = places[draggedIndex];
+        places.splice(draggedIndex, 1); // remove dragged
+        places.splice(targetIndex, 0, draggedPlace); // insert at new pos
+
+        refreshPlaceList();
+      });
+
+      placeListEl.appendChild(div);
+    });
+  }
+
+  map.on('click', function (e) {
+    selectedCoords = [e.latlng.lat, e.latlng.lng];
+    if (currentMarker) map.removeLayer(currentMarker);
+    currentMarker = L.marker(e.latlng).addTo(map);
+    updateInfo();
+  });
+
+  document.getElementById('mp3Input').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (file && file.type === 'audio/mpeg') {
+      selectedMP3 = file;
+    } else {
+      selectedMP3 = null;
+    }
+    updateInfo();
+  });
+
+  document.getElementById('addPlaceBtn').addEventListener('click', () => {
+    if (!selectedCoords || !selectedMP3) return;
+
+    const customName = nameInput.value.trim() || selectedMP3.name;
+    const fileName = Date.now() + '_' + selectedMP3.name;
+
+    const newPlace = {
+      id: nextId++,  // assign unique id here
+      name: customName,
+      lat: selectedCoords[0],
+      lng: selectedCoords[1],
+      sound: fileName
+    };
+
+    places.push(newPlace);
+
+    const reader = new FileReader();
+    reader.onload = function () {
+      soundFiles[fileName] = reader.result;
+    };
+    reader.readAsArrayBuffer(selectedMP3);
+
+    selectedMP3 = null;
+    nameInput.value = '';
+    document.getElementById('mp3Input').value = '';
+    updateInfo();
+    refreshPlaceList();
+  });
+
+document.getElementById('exportZipBtn').addEventListener('click', () => {
+  const zip = new JSZip();
+
+  // Create a new array with ids assigned dynamically on export
+  const placesWithIds = places.map((p, index) => ({
+    id: index + 1,  // Assign id based on current order
+    name: p.name,
+    lat: p.lat,
+    lng: p.lng,
+    sound: p.sound
+  }));
+
+  zip.file("places.json", JSON.stringify(placesWithIds, null, 2));
+  const soundsFolder = zip.folder("sounds");
+
+  for (const [filename, data] of Object.entries(soundFiles)) {
+    soundsFolder.file(filename, data);
+  }
+
+  zip.generateAsync({ type: "blob" }).then(blob => {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "places_with_sounds.zip";
+    link.click();
+  });
+});
+
+  updateInfo();
+  refreshPlaceList();
+
+</script>
+
+</body>
+</html>
