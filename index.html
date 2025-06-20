@@ -127,6 +127,25 @@ input[type="file"] {
     const mp3Text = selectedMP3 ? `MP3: ${selectedMP3.name}` : 'No MP3 selected';
     infoEl.textContent = `${coordText}\n${mp3Text}`;
   }
+    navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      selectedCoords = [lat, lng];
+
+      document.getElementById('latInput').value = lat.toFixed(6);
+      document.getElementById('lngInput').value = lng.toFixed(6);
+
+      if (currentMarker) map.removeLayer(currentMarker);
+      currentMarker = L.marker([lat, lng]).addTo(map);
+      map.setView([lat, lng], 13); // Zoom in closer to current location
+
+      updateInfo();
+    },
+    (err) => {
+      alert('Unable to retrieve location: ' + err.message);
+    }
+  );
 document.getElementById('setCoordsBtn').addEventListener('click', () => {
   const lat = parseFloat(document.getElementById('latInput').value);
   const lng = parseFloat(document.getElementById('lngInput').value);
