@@ -17,7 +17,7 @@ input[type="file"]::file-selector-button {
 }
 
 input[type="file"] {
-  margin-right: -100px;
+  margin-right: -150px;
   color: transparent;
 }
 
@@ -76,10 +76,29 @@ input[type="file"] {
       display: inline-block;
       min-width: 100px;
     }
+    #tripList {
+
+      width: 100%;
+      height: 90%;
+      display: none;
+    }
+    #tripcreator {
+      width: 100%;
+      height: 200%;
+    }
   </style>
 </head>
 <body>
+<button id="toggle">WYCIECZKI</button>
+<div id="tripList" style="width:79%; margin-left:10%; background:#fff; padding:10px; border:1px solid #ccc;">
+<h3 style="margin-left:10%">Zapisane wycieczki</h3>
 
+
+</div>
+
+
+
+<div id="tripcreator">
 <div id="map"></div>
 
 <div class="controls">
@@ -92,10 +111,53 @@ input[type="file"] {
   <input type="file" id="mp3Input" accept=".mp3">
   <button id="addPlaceBtn">Add Place</button>
   <button id="exportZipBtn">Export ZIP</button>
+  <button id="addtrip">Upload trip</button>
 </div>
 
 <div id="placeList"></div>
+</div>
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-storage.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
 
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyBuBf-QqE6q0U2aH7qgRhzbwu2_dTs5K6w",
+    authDomain: "mytrip-aa359.firebaseapp.com",
+    projectId: "mytrip-aa359",
+    storageBucket: "mytrip-aa359.firebasestorage.app",
+    messagingSenderId: "79019124080",
+    appId: "1:79019124080:web:3f77f514938a98aa4b5bb5",
+    measurementId: "G-CXNERF2JVT"
+
+  };
+
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+const storage = getStorage(app);
+
+import { getDocs, collection } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+async function loadTrips() {
+  const snapshot = await getDocs(collection(db, "trips"));
+  const trips = [];
+
+  snapshot.forEach(doc => {
+    trips.push({ id: doc.id, ...doc.data() });
+  });
+
+  displayTrips(trips); // Napisz funkcję, która pokazuje listę wycieczek w UI
+}
+</script>
 <script>
   const map = L.map('map', {
   minZoom: 3,
@@ -118,6 +180,8 @@ input[type="file"] {
   let soundFiles = {};
   let nextId = 1; // incremental id counter
 
+  const tripcreator = document.getElementById('tripcreator');
+  const tripList = document.getElementById('tripList');
   const infoEl = document.getElementById('info');
   const placeListEl = document.getElementById('placeList');
   const nameInput = document.getElementById('placeNameInput');
@@ -146,6 +210,47 @@ input[type="file"] {
       alert('Unable to retrieve location: ' + err.message);
     }
   );
+  function displayTrips(trips) {
+  const tripListEl = document.getElementById("tripList");
+  tripListEl.innerHTML = "";
+
+  if (trips.length === 0) {
+    tripListEl.innerHTML = "<p>Brak zapisanych wycieczek.</p>";
+    return;
+  }
+
+  trips.forEach(trip => {
+    const div = document.createElement("div");
+    div.style.border = "1px solid #ddd";
+    div.style.padding = "8px";
+    div.style.marginBottom = "8px";
+    div.style.background = "#f9f9f9";
+    div.innerHTML = `
+      <strong>${trip.title}</strong><br/>
+      Liczba miejsc: ${trip.places.length}<br/>
+      <button data-id="${trip.id}">Zobacz</button>
+    `;
+
+    div.querySelector("button").addEventListener("click", () => {
+      showTripDetails(trip);
+    });
+
+    tripListEl.appendChild(div);
+  });
+}
+function showTripDetails(trip) {
+  const details = trip.places.map(p =>
+    `• ${p.name} [${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}] — <a href="${p.soundUrl}" target="_blank">Odtwórz</a>`
+  ).join("<br/>");
+
+  alert(`Wycieczka: ${trip.title}\n\n${details.replace(/<br\/>/g, '\n').replace(/<[^>]+>/g, '')}`);
+}
+document.getElementById('toggle').addEventListener('click', () => {
+  const tripList = document.getElementById('tripList');
+  const tripcreator = document.getElementById('tripcreator');
+  tripList.style.display = tripList.style.display === "none" ? "block" : "none";
+  tripcreator.style.display = tripList.style.display === "none" ? "block" : "none";
+});
 document.getElementById('setCoordsBtn').addEventListener('click', () => {
   const lat = parseFloat(document.getElementById('latInput').value);
   const lng = parseFloat(document.getElementById('lngInput').value);
@@ -290,6 +395,46 @@ document.getElementById('useLocationBtn').addEventListener('click', () => {
     updateInfo();
     refreshPlaceList();
   });
+document.getElementById('addtrip').addEventListener('click', async () => {
+  const tripTitle = prompt("Podaj nazwę wycieczki:");
+  if (!tripTitle || places.length === 0) {
+    alert("Brak miejsc lub tytułu.");
+    return;
+  }
+
+  await saveTripToFirebase(tripTitle, places, soundFiles);
+});
+
+async function saveTripToFirebase(tripTitle, places, soundFiles) {
+  const uploadedPlaces = [];
+
+  for (const place of places) {
+    const mp3Blob = soundFiles[place.sound]; // sound = np. "zuraw.mp3"
+    if (!mp3Blob) continue;
+
+    // Upload MP3
+    const mp3Ref = ref(storage, 'trips/' + Date.now() + '_' + place.sound);
+    await uploadBytes(mp3Ref, mp3Blob);
+    const mp3Url = await getDownloadURL(mp3Ref);
+
+    uploadedPlaces.push({
+      id: place.id,
+      name: place.name,
+      lat: place.lat,
+      lng: place.lng,
+      soundUrl: mp3Url
+    });
+  }
+
+  // Save trip object
+  const docRef = await addDoc(collection(db, "trips"), {
+    title: tripTitle,
+    places: uploadedPlaces,
+    createdAt: serverTimestamp()
+  });
+
+  alert("Wycieczka zapisana! ID: " + docRef.id);
+}
 
 document.getElementById('exportZipBtn').addEventListener('click', () => {
   const zip = new JSZip();
@@ -320,7 +465,7 @@ document.getElementById('exportZipBtn').addEventListener('click', () => {
 
   updateInfo();
   refreshPlaceList();
-
+loadTrips();
 </script>
 
 </body>
