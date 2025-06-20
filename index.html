@@ -8,6 +8,19 @@
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
   <style>
+    input[type="file"]::-webkit-file-upload-button {
+  margin-right: -1000px; /* lub dowolna duża liczba */
+}
+
+input[type="file"]::file-selector-button {
+  margin-right: -1000px;
+}
+
+input[type="file"] {
+  margin-right: -100px;
+  color: transparent;
+}
+
     body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: #04a2c9;}
     #map { height: 60%; width: 80%; position: relative;left: 10%;}
     .controls {
@@ -73,6 +86,7 @@
   <input type="number" id="latInput" placeholder="Latitude" step="any">
   <input type="number" id="lngInput" placeholder="Longitude" step="any">
   <button id="setCoordsBtn">Set Coordinates</button>
+    <button id="useLocationBtn">Use My Location</button>
   <div class="info" id="info">No coordinates selected\nNo MP3 selected</div>
   <input type="text" id="placeNameInput" placeholder="Place name" />
   <input type="file" id="mp3Input" accept=".mp3">
@@ -85,7 +99,7 @@
 <script>
   const map = L.map('map', {
   minZoom: 3,
-  maxZoom: 17,
+  maxZoom: 18,
   
   maxBounds: [
     [-85, -180],  // Southwest corner
@@ -138,11 +152,19 @@ document.getElementById('setCoordsBtn').addEventListener('click', () => {
       div.draggable = true;
       div.dataset.index = index; // track index for drag and drop
 
-      div.innerHTML = `
-        <div class="place-info">
-          <strong>${p.name}</strong> | Lat: ${p.lat.toFixed(5)}, Lng: ${p.lng.toFixed(5)} | ID: ${p.id}
-        </div>
-      `;
+div.innerHTML = `
+    <div class="place-info">
+      <strong>${p.name}</strong> | Lat: ${p.lat.toFixed(5)}, Lng: ${p.lng.toFixed(5)} | ID: ${p.id} | Sound: ${p.sound}
+    </div>
+    <button class="delete-btn">Delete</button>
+  `;
+
+  // Delete handler
+  div.querySelector('.delete-btn').addEventListener('click', () => {
+    places.splice(index, 1);
+    refreshPlaceList();
+  });
+
 
       // Drag event handlers
       div.addEventListener('dragstart', (e) => {
@@ -178,7 +200,32 @@ document.getElementById('setCoordsBtn').addEventListener('click', () => {
       placeListEl.appendChild(div);
     });
   }
+document.getElementById('useLocationBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
 
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      selectedCoords = [lat, lng];
+
+      document.getElementById('latInput').value = lat.toFixed(6);
+      document.getElementById('lngInput').value = lng.toFixed(6);
+
+      if (currentMarker) map.removeLayer(currentMarker);
+      currentMarker = L.marker([lat, lng]).addTo(map);
+      map.setView([lat, lng], 13); // Zoom in closer to current location
+
+      updateInfo();
+    },
+    (err) => {
+      alert('Unable to retrieve location: ' + err.message);
+    }
+  );
+});
   map.on('click', function (e) {
     selectedCoords = [e.latlng.lat, e.latlng.lng];
     if (currentMarker) map.removeLayer(currentMarker);
