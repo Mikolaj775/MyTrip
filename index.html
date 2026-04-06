@@ -58,15 +58,40 @@ input[type="file"] {
       user-select: none;
     }
     .place-entry {
-      padding: 6px;
-      border-bottom: 1px solid #ddd;
-      font-size: 14px;
-      background: white;
-      cursor: grab;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+  display: flex;
+  width: 100%;
+  margin-bottom: 6px;
+  border: 1px solid #ccc;
+  background: white;
+}
+
+.drop-zone {
+  width: 30%;
+  padding: 10px;
+  text-align: center;
+  background: #eee;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.drop-zone.center {
+  width: 40%;
+  background: #fff;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+}
+
+.drop-zone:hover {
+  background: #cce5ff;
+}
+
+.drop-zone.left:hover {
+  background: #a8d5ff;
+}
+
+.drop-zone.right:hover {
+  background: #a8d5ff;
+}
     .place-entry.dragging {
       opacity: 0.5;
     }
@@ -87,6 +112,46 @@ input[type="file"] {
       width: 100%;
       height: 200%;
     }
+    .place-entry {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  margin-bottom: 8px;
+}
+
+.place-box {
+  position: absolute;
+  width: 45%;
+  padding: 8px;
+  background: white;
+  border: 1px solid #ccc;
+  transition: 0.2s;
+}
+
+/* 👇 środek */
+.place-center {
+  left: 27.5%;
+}
+
+/* 👇 lewa strona */
+.place-left {
+  left: 0;
+  background: #e6f2ff;
+}
+
+/* 👇 prawa strona */
+.place-right {
+  right: 0;
+  background: #ffe6e6;
+}
+
+/* 👇 hover preview */
+.place-entry.drag-left .place-box {
+  left: 0 !important;
+}
+.place-entry.drag-right .place-box {
+  right: 0 !important;
+}
   </style>
 </head>
 <body>
@@ -239,11 +304,16 @@ distanceRange.addEventListener('input', () => {
     div.style.padding = "8px";
     div.style.marginBottom = "8px";
     div.style.background = "#f9f9f9";
-    div.innerHTML = `
-      <strong>${trip.title}</strong><br/>
-      Liczba miejsc: ${trip.places.length}<br/>
-      <button data-id="${trip.id}">Zobacz</button>
-    `;
+div.innerHTML = `
+  <div class="drop-zone left">⬅️</div>
+
+  <div class="drop-zone center">
+    <strong>${p.name}</strong><br>
+    ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}
+  </div>
+
+  <div class="drop-zone right">➡️</div>
+`;
 
     div.querySelector("button").addEventListener("click", () => {
       showTripDetails(trip);
@@ -282,67 +352,81 @@ document.getElementById('setCoordsBtn').addEventListener('click', () => {
 
   updateInfo();
 });
-  function refreshPlaceList() {
-    placeListEl.innerHTML = '';
-    places.forEach((p, index) => {
-      const div = document.createElement('div');
-      div.className = 'place-entry';
-      div.draggable = true;
-      div.dataset.index = index; // track index for drag and drop
+function renderPlace(p, index) {
+  const div = document.createElement('div');
+  div.className = 'place-entry';
+  div.draggable = true;
+  div.dataset.index = index;
 
-div.innerHTML = `
-  <div class="place-info">
-    <strong>${p.name}</strong> | 
-    Lat: ${p.lat.toFixed(5)}, 
-    Lng: ${p.lng.toFixed(5)} | 
-    Radius: ${p.radius}m |
-    ID: ${p.id} | 
-    Sound: ${p.sound}
-  </div>
-  <button class="delete-btn">Delete</button>
-`;
+  let sideClass = "place-center";
+  if (p.side === "left") sideClass = "place-left";
+  if (p.side === "right") sideClass = "place-right";
 
-  // Delete handler
-  div.querySelector('.delete-btn').addEventListener('click', () => {
-    places.splice(index, 1);
+  div.innerHTML = `
+    <div class="place-box ${sideClass}">
+      <strong>${p.name}</strong><br>
+      ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}
+    </div>
+  `;
+
+  // DRAG START
+  div.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/plain', index);
+  });
+
+  // DRAG OVER → preview
+  div.addEventListener('dragover', (e) => {
+    e.preventDefault();
+
+    const rect = div.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+
+    div.classList.remove('drag-left', 'drag-right');
+
+    if (x < rect.width * 0.3) {
+      div.classList.add('drag-left');
+    } else if (x > rect.width * 0.7) {
+      div.classList.add('drag-right');
+    }
+  });
+
+  // DROP
+  div.addEventListener('drop', (e) => {
+    e.preventDefault();
+
+    const draggedIndex = Number(e.dataTransfer.getData('text/plain'));
+    const dragged = places[draggedIndex];
+
+    const rect = div.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+
+// usuń ze starego miejsca zawsze
+places.splice(draggedIndex, 1);
+
+if (x < rect.width * 0.3) {
+  dragged.side = "left";
+} 
+else if (x > rect.width * 0.7) {
+  dragged.side = "right";
+} 
+else {
+  dragged.side = "center"; // 👈 NOWE
+}
+
+// wrzuć w nowe miejsce
+places.splice(index, 0, dragged);
+
+    div.classList.remove('drag-left', 'drag-right');
     refreshPlaceList();
   });
 
+  placeListEl.appendChild(div);
+}
 
-      // Drag event handlers
-      div.addEventListener('dragstart', (e) => {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', index);
-        div.classList.add('dragging');
-      });
-
-      div.addEventListener('dragend', () => {
-        div.classList.remove('dragging');
-      });
-
-      div.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-      });
-
-      div.addEventListener('drop', (e) => {
-        e.preventDefault();
-        const draggedIndex = Number(e.dataTransfer.getData('text/plain'));
-        const targetIndex = Number(div.dataset.index);
-
-        if (draggedIndex === targetIndex) return;
-
-        // Reorder places array
-        const draggedPlace = places[draggedIndex];
-        places.splice(draggedIndex, 1); // remove dragged
-        places.splice(targetIndex, 0, draggedPlace); // insert at new pos
-
-        refreshPlaceList();
-      });
-
-      placeListEl.appendChild(div);
-    });
-  }
+function refreshPlaceList() {
+  placeListEl.innerHTML = '';
+  places.forEach((p, i) => renderPlace(p, i));
+}
 document.getElementById('useLocationBtn').addEventListener('click', () => {
   if (!navigator.geolocation) {
     alert('Geolocation is not supported by your browser.');
@@ -392,14 +476,15 @@ document.getElementById('useLocationBtn').addEventListener('click', () => {
     const customName = nameInput.value.trim() || selectedMP3.name;
     const fileName = Date.now() + '_' + selectedMP3.name;
 
-    const newPlace = {
-      id: nextId++,  // assign unique id here
-      name: customName,
-      lat: selectedCoords[0],
-      lng: selectedCoords[1],
-      sound: fileName,
-      radius: selectedDistance
-    };
+const newPlace = {
+  id: nextId++,
+  name: customName,
+  lat: selectedCoords[0],
+  lng: selectedCoords[1],
+  sound: fileName,
+  radius: selectedDistance,
+  side: "center" // 👈 NOWE
+};
 
     places.push(newPlace);
 
@@ -460,13 +545,27 @@ document.getElementById('exportZipBtn').addEventListener('click', () => {
   const zip = new JSZip();
 
   // Create a new array with ids assigned dynamically on export
+function serializePlaces(list) {
+  return list.map(p => ({
+    id: p.id,
+    name: p.name,
+    lat: p.lat,
+    lng: p.lng,
+    sound: p.sound,
+    radius: p.radius,
+    left: serializePlaces(p.left),
+    right: serializePlaces(p.right)
+  }));
+}
+
 const placesWithIds = places.map((p, index) => ({
   id: index + 1,
   name: p.name,
   lat: p.lat,
   lng: p.lng,
   sound: p.sound,
-  radius: p.radius 
+  radius: p.radius,
+  side: p.side // 👈 NOWE
 }));
 
 
