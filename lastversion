@@ -1,594 +1,1664 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Map Sound Marker</title>
+  <title>SoundMap – Twórca Wycieczek</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
   <style>
-    input[type="file"]::-webkit-file-upload-button {
-  margin-right: -1000px; /* lub dowolna duża liczba */
-}
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1c1c28;
+      --border: #2a2a3d;
+      --accent: #00e5ff;
+      --accent2: #ff3d71;
+      --accent3: #a855f7;
+      --text: #e8e8f0;
+      --text-dim: #6b6b8a;
+      --success: #00e096;
+      --left-color: #3b82f6;
+      --right-color: #f97316;
+      --center-color: #a855f7;
+    }
 
-input[type="file"]::file-selector-button {
-  margin-right: -1000px;
-}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-input[type="file"] {
-  margin-right: -150px;
-  color: transparent;
-}
-
-    body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: #04a2c9;}
-    #map { height: 60%; width: 80%; position: relative;left: 10%;}
-    .controls {
-
-      width: 75%;
-      position: relative;
-      left: 10%;
-      margin-top: 10px;
-      padding: 40px;
-      background: #f0f0f0;
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ═══════════════════════════════ HEADER ═══════════════════════════════ */
+    #header {
+      display: flex;
       align-items: center;
-      gap: 15px;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      z-index: 1000;
     }
-    .info {
-      font-size: 14px;
-      white-space: pre-line;
-    }
-    input[type="file"], input[type="text"] {
-      font-size: 14px;
-      padding: 4px;
-    }
-    button {
-      padding: 6px 12px;
-      font-size: 14px;
-    }
-    #placeList {
-      width: 79%; position: relative;left: 10%;
-      flex: 1;
-      overflow-y: auto;
-      background: #fafafa;
-      padding: 10px;
-      border-top: 1px solid #ccc;
-      user-select: none;
-    }
-    .place-entry {
-  display: flex;
-  width: 100%;
-  margin-bottom: 6px;
-  border: 1px solid #ccc;
-  background: white;
-}
 
-.drop-zone {
-  width: 30%;
-  padding: 10px;
-  text-align: center;
-  background: #eee;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.drop-zone.center {
-  width: 40%;
-  background: #fff;
-  border-left: 1px solid #ccc;
-  border-right: 1px solid #ccc;
-}
-
-.drop-zone:hover {
-  background: #cce5ff;
-}
-
-.drop-zone.left:hover {
-  background: #a8d5ff;
-}
-
-.drop-zone.right:hover {
-  background: #a8d5ff;
-}
-    .place-entry.dragging {
-      opacity: 0.5;
+    #header .logo {
+      font-family: 'Space Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
     }
-    .place-info {
-      flex-grow: 1;
-    }
-    .place-entry strong {
-      display: inline-block;
-      min-width: 100px;
-    }
-    #tripList {
 
-      width: 100%;
-      height: 90%;
+    #header .logo span { color: var(--accent2); }
+
+    #nav {
+      display: flex;
+      gap: 4px;
+    }
+
+    .nav-btn {
+      padding: 6px 16px;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: transparent;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+    }
+
+    .nav-btn:hover { color: var(--text); border-color: var(--border); background: var(--surface2); }
+    .nav-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(0,229,255,0.08); }
+
+    #auth-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #user-info {
+      font-size: 13px;
+      color: var(--text-dim);
       display: none;
     }
-    #tripcreator {
-      width: 100%;
-      height: 200%;
+
+    #user-info.visible { display: flex; align-items: center; gap: 8px; }
+
+    #user-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent3), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #fff;
     }
+
+    .btn {
+      padding: 7px 16px;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { background: #00c4db; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,229,255,0.3); }
+
+    .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+
+    .btn-danger { background: var(--accent2); color: #fff; }
+    .btn-danger:hover { background: #e0305f; }
+
+    .btn-success { background: var(--success); color: #000; }
+    .btn-success:hover { filter: brightness(0.9); }
+
+    /* ═══════════════════════════════ VIEWS ═══════════════════════════════ */
+    .view {
+      flex: 1;
+      overflow: hidden;
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .view.active { display: flex; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══════════════════════════════ CREATOR VIEW ═══════════════════════════════ */
+    #view-creator {
+      flex-direction: row;
+    }
+
+    /* LEFT PANEL */
+    #left-panel {
+      width: 340px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    #panel-top {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .panel-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .coord-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .input-field {
+      flex: 1;
+      padding: 8px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-field:focus { border-color: var(--accent); }
+    .input-field::placeholder { color: var(--text-dim); }
+
+    .input-field-text {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-field-text:focus { border-color: var(--accent); }
+    .input-field-text::placeholder { color: var(--text-dim); }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-row .btn { flex: 1; font-size: 12px; padding: 7px 8px; }
+
+    .file-upload-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--surface2);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .file-upload-label:hover { border-color: var(--accent); color: var(--accent); }
+    .file-upload-label.has-file { border-color: var(--success); color: var(--success); }
+    .file-upload-label svg { flex-shrink: 0; }
+
+    input[type="file"] { display: none; }
+
+    .range-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent);
+      height: 4px;
+    }
+
+    .range-val {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      min-width: 45px;
+      text-align: right;
+    }
+
+    #coord-display {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--surface2);
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      line-height: 1.6;
+    }
+
+    #coord-display.has-coords { color: var(--accent); border-color: rgba(0,229,255,0.3); }
+
+    .btn-add-place {
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent3));
+      color: #000;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 1px;
+    }
+
+    .btn-add-place:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,229,255,0.35); }
+    .btn-add-place:active { transform: translateY(0); }
+    .btn-add-place:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* PLACE LIST */
+    #place-list-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #place-count {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      background: var(--accent);
+      color: #000;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 700;
+    }
+
+    #placeList {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    #placeList::-webkit-scrollbar { width: 4px; }
+    #placeList::-webkit-scrollbar-track { background: transparent; }
+    #placeList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ═══════════════════════════════ PLACE ENTRIES ═══════════════════════════════ */
     .place-entry {
-  position: relative;
-  width: 100%;
-  height: 50px;
-  margin-bottom: 8px;
-}
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+      cursor: grab;
+      user-select: none;
+    }
 
-.place-box {
-  position: absolute;
-  width: 45%;
-  padding: 8px;
-  background: white;
-  border: 1px solid #ccc;
-  transition: 0.2s;
-}
+    .place-entry:active { cursor: grabbing; }
 
-/* 👇 środek */
-.place-center {
-  left: 27.5%;
-}
+    .place-entry.dragging {
+      opacity: 0.4;
+      transform: scale(0.96);
+      border-color: var(--accent);
+      box-shadow: 0 0 20px rgba(0,229,255,0.2);
+    }
 
-/* 👇 lewa strona */
-.place-left {
-  left: 0;
-  background: #e6f2ff;
-}
+    .place-entry.drag-over {
+      transform: translateY(4px);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0,229,255,0.2);
+    }
 
-/* 👇 prawa strona */
-.place-right {
-  right: 0;
-  background: #ffe6e6;
-}
+    .place-entry.drag-over-before {
+      border-top-color: var(--accent);
+      box-shadow: 0 -3px 0 0 var(--accent);
+    }
 
-/* 👇 hover preview */
-.place-entry.drag-left .place-box {
-  left: 0 !important;
-}
-.place-entry.drag-right .place-box {
-  right: 0 !important;
-}
+    .place-entry.drag-over-after {
+      border-bottom-color: var(--accent);
+      box-shadow: 0 3px 0 0 var(--accent);
+    }
+
+    /* animate in */
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-12px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .place-entry.new-entry { animation: slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+    .place-inner {
+      display: flex;
+      align-items: stretch;
+      height: 52px;
+    }
+
+    .place-side-indicator {
+      width: 4px;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+
+    .side-center .place-side-indicator { background: var(--center-color); }
+    .side-left .place-side-indicator { background: var(--left-color); }
+    .side-right .place-side-indicator { background: var(--right-color); }
+
+    .place-body {
+      flex: 1;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .place-name {
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .place-meta {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .place-side-badge {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-top: 2px;
+      display: inline-block;
+      width: fit-content;
+    }
+
+    .side-center .place-side-badge { background: rgba(168,85,247,0.2); color: var(--center-color); }
+    .side-left .place-side-badge { background: rgba(59,130,246,0.2); color: var(--left-color); }
+    .side-right .place-side-badge { background: rgba(249,115,22,0.2); color: var(--right-color); }
+
+    /* SIDE SWITCHER on right side of entry */
+    .place-actions {
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border);
+    }
+
+    .side-btn {
+      flex: 1;
+      width: 32px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text-dim);
+      font-size: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .side-btn:hover { background: var(--surface); color: var(--text); }
+
+    .side-btn.active-left { color: var(--left-color); background: rgba(59,130,246,0.1); }
+    .side-btn.active-center { color: var(--center-color); background: rgba(168,85,247,0.1); }
+    .side-btn.active-right { color: var(--right-color); background: rgba(249,115,22,0.1); }
+
+    .side-btn.delete-btn:hover { color: var(--accent2); background: rgba(255,61,113,0.1); }
+
+    /* DROP INDICATOR LINE */
+    .drop-indicator {
+      height: 3px;
+      background: var(--accent);
+      border-radius: 2px;
+      margin: 2px 0;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .drop-indicator.visible { opacity: 1; }
+
+    /* ═══════════════════════════════ MAP ═══════════════════════════════ */
+    #map-container {
+      flex: 1;
+      position: relative;
+    }
+
+    #map { width: 100%; height: 100%; }
+
+    /* ═══════════════════════════════ EXPORT BAR ═══════════════════════════════ */
+    #export-bar {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      gap: 8px;
+      z-index: 999;
+    }
+
+    #export-bar .btn {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    /* ═══════════════════════════════ TRIPS VIEW ═══════════════════════════════ */
+    #view-trips {
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #trips-header {
+      padding: 24px 32px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #trips-header h2 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    #trips-header p { color: var(--text-dim); font-size: 14px; margin-top: 4px; }
+
+    #trips-filter {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .filter-btn {
+      padding: 5px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text-dim);
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover, .filter-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,229,255,0.08);
+    }
+
+    #trips-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 32px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+      align-content: start;
+    }
+
+    #trips-grid::-webkit-scrollbar { width: 4px; }
+    #trips-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .trip-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.25s;
+      cursor: pointer;
+      animation: fadeIn 0.4s ease both;
+    }
+
+    .trip-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0,229,255,0.12);
+    }
+
+    .trip-card-map {
+      height: 140px;
+      background: var(--surface2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* mini map dots */
+    .trip-dot {
+      position: absolute;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 6px var(--accent);
+    }
+
+    .trip-card-body {
+      padding: 14px;
+    }
+
+    .trip-card-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .trip-card-meta {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      gap: 12px;
+    }
+
+    .trip-card-author {
+      font-size: 12px;
+      color: var(--accent3);
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    .trip-card-footer {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .trip-card-footer .btn { font-size: 12px; padding: 5px 12px; }
+
+    /* loading / empty */
+    .loading-spinner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 60px;
+      color: var(--text-dim);
+      font-size: 14px;
+      grid-column: 1/-1;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner-ring {
+      width: 32px; height: 32px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* ═══════════════════════════════ AUTH MODAL ═══════════════════════════════ */
+    #modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.2s ease;
+    }
+
+    #modal-overlay.open { display: flex; }
+
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      width: 380px;
+      max-width: 90vw;
+      animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.9) translateY(20px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .modal-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .modal-sub {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 24px;
+    }
+
+    .modal-field {
+      margin-bottom: 14px;
+    }
+
+    .modal-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .modal-input:focus { border-color: var(--accent); }
+
+    .modal-err {
+      color: var(--accent2);
+      font-size: 12px;
+      min-height: 16px;
+      margin-bottom: 10px;
+    }
+
+    .modal-footer {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modal-switch {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .modal-switch a {
+      color: var(--accent);
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px; right: 16px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .modal-close:hover { color: var(--text); background: var(--surface2); }
+
+    /* ═══════════════════════════════ TRIP DETAIL MODAL ═══════════════════════════════ */
+    #trip-detail-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px);
+      z-index: 9998;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #trip-detail-overlay.open { display: flex; }
+
+    .trip-detail-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      width: 500px;
+      max-width: 90vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .trip-detail-box::-webkit-scrollbar { width: 4px; }
+    .trip-detail-box::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .trip-detail-title {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .trip-detail-author {
+      font-size: 13px;
+      color: var(--accent3);
+      margin-bottom: 16px;
+    }
+
+    .detail-place-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: var(--surface2);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border-left: 3px solid var(--border);
+    }
+
+    .detail-place-row.side-left { border-left-color: var(--left-color); }
+    .detail-place-row.side-right { border-left-color: var(--right-color); }
+    .detail-place-row.side-center { border-left-color: var(--center-color); }
+
+    .detail-place-num {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      min-width: 20px;
+    }
+
+    .detail-place-info { flex: 1; }
+    .detail-place-name { font-size: 14px; font-weight: 700; }
+    .detail-place-coords { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-dim); }
+
+    .detail-play-btn {
+      padding: 5px 10px;
+      background: rgba(0,229,255,0.1);
+      border: 1px solid rgba(0,229,255,0.3);
+      border-radius: 6px;
+      color: var(--accent);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+
+    .detail-play-btn:hover { background: rgba(0,229,255,0.2); }
+
+    /* ═══════════════════════════════ TOAST ═══════════════════════════════ */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 99999;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    #toast.success { background: var(--success); color: #000; }
+    #toast.error { background: var(--accent2); color: #fff; }
+    #toast.info { background: var(--accent); color: #000; }
+
+    /* ═══════════════════════════════ CUSTOM LEAFLET ═══════════════════════════════ */
+    .leaflet-container { background: #0d0d1a; }
+    .leaflet-control-zoom a {
+      background: var(--surface2) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+    .leaflet-control-attribution { display: none; }
+
+    /* ═══════════════════════════════ SAVE TRIP MODAL ═══════════════════════════════ */
+    #save-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #save-modal-overlay.open { display: flex; }
   </style>
 </head>
 <body>
-<button id="toggle">WYCIECZKI</button>
-<div id="tripList" style="width:79%; margin-left:10%; background:#fff; padding:10px; border:1px solid #ccc;">
-<h3 style="margin-left:10%">Zapisane wycieczki</h3>
 
+<!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
+<div id="header">
+  <div class="logo">Sound<span>Map</span></div>
 
-</div>
-
-
-
-<div id="tripcreator">
-<div id="map"></div>
-
-<div class="controls">
-  <input type="number" id="latInput" placeholder="Latitude" step="any">
-  <input type="number" id="lngInput" placeholder="Longitude" step="any">
-  <button id="setCoordsBtn">Set Coordinates</button>
-    <button id="useLocationBtn">Use My Location</button>
-  <div class="info" id="info">No coordinates selected\nNo MP3 selected</div>
-  <input type="text" id="placeNameInput" placeholder="Place name" />
-  <input type="file" id="mp3Input" accept=".mp3">
-  <label for="distanceRange">Detection distance (meters):</label>
-<input type="range" id="distanceRange" min="10" max="100" step="1" value="15">
-<span id="distanceValue">15 m</span>
-
-  <button id="addPlaceBtn">Add Place</button>
-  <button id="exportZipBtn">Export ZIP</button>
-  <button id="addtrip">Upload trip</button>
-</div>
-
-<div id="placeList"></div>
-</div>
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-storage.js";
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyBuBf-QqE6q0U2aH7qgRhzbwu2_dTs5K6w",
-    authDomain: "mytrip-aa359.firebaseapp.com",
-    projectId: "mytrip-aa359",
-    storageBucket: "mytrip-aa359.firebasestorage.app",
-    messagingSenderId: "79019124080",
-    appId: "1:79019124080:web:3f77f514938a98aa4b5bb5",
-    measurementId: "G-CXNERF2JVT"
-
-  };
-
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-  const db = getFirestore(app);
-const storage = getStorage(app);
-
-import { getDocs, collection } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
-
-async function loadTrips() {
-  const snapshot = await getDocs(collection(db, "trips"));
-  const trips = [];
-
-  snapshot.forEach(doc => {
-    trips.push({ id: doc.id, ...doc.data() });
-  });
-
-  displayTrips(trips); // Napisz funkcję, która pokazuje listę wycieczek w UI
-}
-</script>
-<script>
-  const map = L.map('map', {
-  minZoom: 3,
-  maxZoom: 18,
-  
-  maxBounds: [
-    [-85, -180],  // Southwest corner
-    [85, 180]     // Northeast corner
-  ],
-  maxBoundsViscosity: 10 // Prevent dragging outside bounds
-}).setView([20, 0], 2);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map);
-
-  let selectedCoords = null;
-  let selectedMP3 = null;
-  let currentMarker = null;
-  let places = [];
-  let soundFiles = {};
-  let nextId = 1; // incremental id counter
-
-  const tripcreator = document.getElementById('tripcreator');
-  const tripList = document.getElementById('tripList');
-  const infoEl = document.getElementById('info');
-  const placeListEl = document.getElementById('placeList');
-  const nameInput = document.getElementById('placeNameInput');
-const distanceRange = document.getElementById('distanceRange');
-const distanceValue = document.getElementById('distanceValue');
-
-let selectedDistance = 100;
-
-distanceRange.addEventListener('input', () => {
-  selectedDistance = parseInt(distanceRange.value);
-  distanceValue.textContent = selectedDistance + " m";
-});
-
-  function updateInfo() {
-    const coordText = selectedCoords ? `Lat: ${selectedCoords[0].toFixed(5)}\nLng: ${selectedCoords[1].toFixed(5)}` : 'No coordinates selected';
-    const mp3Text = selectedMP3 ? `MP3: ${selectedMP3.name}` : 'No MP3 selected';
-    infoEl.textContent = `${coordText}\n${mp3Text}`;
-  }
-    navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      selectedCoords = [lat, lng];
-
-      document.getElementById('latInput').value = lat.toFixed(6);
-      document.getElementById('lngInput').value = lng.toFixed(6);
-
-      if (currentMarker) map.removeLayer(currentMarker);
-      currentMarker = L.marker([lat, lng]).addTo(map);
-      map.setView([lat, lng], 13); // Zoom in closer to current location
-
-      updateInfo();
-    },
-    (err) => {
-      alert('Unable to retrieve location: ' + err.message);
-    }
-  );
-  function displayTrips(trips) {
-  const tripListEl = document.getElementById("tripList");
-  tripListEl.innerHTML = "";
-
-  if (trips.length === 0) {
-    tripListEl.innerHTML = "<p>Brak zapisanych wycieczek.</p>";
-    return;
-  }
-
-  trips.forEach(trip => {
-    const div = document.createElement("div");
-    div.style.border = "1px solid #ddd";
-    div.style.padding = "8px";
-    div.style.marginBottom = "8px";
-    div.style.background = "#f9f9f9";
-div.innerHTML = `
-  <div class="drop-zone left">⬅️</div>
-
-  <div class="drop-zone center">
-    <strong>${p.name}</strong><br>
-    ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}
+  <div id="nav">
+    <button class="nav-btn active" onclick="switchView('creator')">Kreator</button>
+    <button class="nav-btn" onclick="switchView('trips')">Wycieczki</button>
   </div>
 
-  <div class="drop-zone right">➡️</div>
-`;
+  <div id="auth-area">
+    <div id="user-info">
+      <div id="user-avatar"></div>
+      <span id="user-email-display"></span>
+      <button class="btn btn-ghost" onclick="handleLogout()" style="font-size:12px; padding:5px 10px;">Wyloguj</button>
+    </div>
+    <button id="login-btn" class="btn btn-primary" onclick="openAuthModal('login')">Zaloguj się</button>
+  </div>
+</div>
 
-    div.querySelector("button").addEventListener("click", () => {
-      showTripDetails(trip);
-    });
+<!-- ═══════════════════════════════ CREATOR VIEW ═══════════════════════════════ -->
+<div id="view-creator" class="view active">
 
-    tripListEl.appendChild(div);
-  });
-}
-function showTripDetails(trip) {
-  const details = trip.places.map(p =>
-    `• ${p.name} [${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}] — <a href="${p.soundUrl}" target="_blank">Odtwórz</a>`
-  ).join("<br/>");
+  <!-- LEFT PANEL -->
+  <div id="left-panel">
+    <div id="panel-top">
+      <div class="panel-label">Współrzędne</div>
+      <div class="coord-row">
+        <input type="number" id="latInput" placeholder="Szerokość" step="any" class="input-field">
+        <input type="number" id="lngInput" placeholder="Długość" step="any" class="input-field">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="setManualCoords()">Ustaw</button>
+        <button class="btn btn-ghost" onclick="useMyLocation()">📍 Moja lokalizacja</button>
+      </div>
 
-  alert(`Wycieczka: ${trip.title}\n\n${details.replace(/<br\/>/g, '\n').replace(/<[^>]+>/g, '')}`);
-}
-document.getElementById('toggle').addEventListener('click', () => {
-  const tripList = document.getElementById('tripList');
-  const tripcreator = document.getElementById('tripcreator');
-  tripList.style.display = tripList.style.display === "none" ? "block" : "none";
-  tripcreator.style.display = tripList.style.display === "none" ? "block" : "none";
+      <div id="coord-display">Kliknij na mapie lub użyj lokalizacji</div>
+
+      <div class="panel-label" style="margin-top:4px">Szczegóły miejsca</div>
+      <input type="text" id="placeNameInput" placeholder="Nazwa miejsca" class="input-field-text">
+
+      <label class="file-upload-label" id="mp3-label" for="mp3Input">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+        </svg>
+        <span id="mp3-label-text">Wybierz plik MP3</span>
+      </label>
+      <input type="file" id="mp3Input" accept=".mp3">
+
+      <div class="range-group">
+        <div class="panel-label">Zasięg detekcji</div>
+        <div class="range-row">
+          <input type="range" id="distanceRange" min="10" max="500" step="5" value="50">
+          <div class="range-val" id="distanceValue">50 m</div>
+        </div>
+      </div>
+
+      <button class="btn-add-place" id="addPlaceBtn" disabled onclick="addPlace()">+ DODAJ MIEJSCE</button>
+    </div>
+
+    <div id="place-list-header">
+      <div>
+        <div class="panel-label">Lista miejsc</div>
+      </div>
+      <div id="place-count">0</div>
+    </div>
+
+    <div id="placeList"></div>
+  </div>
+
+  <!-- MAP -->
+  <div id="map-container">
+    <div id="map"></div>
+    <div id="export-bar">
+      <button class="btn btn-ghost" onclick="exportZip()">⬇ Eksport ZIP</button>
+      <button class="btn btn-success" onclick="openSaveModal()">☁ Zapisz wycieczkę</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ TRIPS VIEW ═══════════════════════════════ -->
+<div id="view-trips" class="view">
+  <div id="trips-header">
+    <h2>Wycieczki społeczności</h2>
+    <p>Przeglądaj trasy stworzone przez innych użytkowników</p>
+    <div id="trips-filter">
+      <button class="filter-btn active" onclick="filterTrips('all', this)">Wszystkie</button>
+      <button class="filter-btn" onclick="filterTrips('mine', this)">Moje</button>
+    </div>
+  </div>
+  <div id="trips-grid">
+    <div class="loading-spinner">
+      <div class="spinner-ring"></div>
+      <span>Ładowanie wycieczek...</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ AUTH MODAL ═══════════════════════════════ -->
+<div id="modal-overlay">
+  <div class="modal-box" style="position:relative">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ SAVE TRIP MODAL ═══════════════════════════════ -->
+<div id="save-modal-overlay">
+  <div class="modal-box" style="position:relative">
+    <button class="modal-close" onclick="document.getElementById('save-modal-overlay').classList.remove('open')">✕</button>
+    <div class="modal-title">Zapisz wycieczkę</div>
+    <div class="modal-sub">Wycieczka będzie widoczna dla wszystkich użytkowników</div>
+    <div class="modal-field">
+      <label>Nazwa wycieczki</label>
+      <input type="text" id="tripTitleInput" class="modal-input" placeholder="np. Szlak przez Cieszyn">
+    </div>
+    <div class="modal-err" id="save-err"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveTrip()">Zapisz w chmurze</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ TRIP DETAIL MODAL ═══════════════════════════════ -->
+<div id="trip-detail-overlay">
+  <div class="trip-detail-box" style="position:relative">
+    <button class="modal-close" onclick="document.getElementById('trip-detail-overlay').classList.remove('open')">✕</button>
+    <div id="trip-detail-content"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-storage.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBuBf-QqE6q0U2aH7qgRhzbwu2_dTs5K6w",
+  authDomain: "mytrip-aa359.firebaseapp.com",
+  projectId: "mytrip-aa359",
+  storageBucket: "mytrip-aa359.firebasestorage.app",
+  messagingSenderId: "79019124080",
+  appId: "1:79019124080:web:3f77f514938a98aa4b5bb5",
+  measurementId: "G-CXNERF2JVT"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+const auth = getAuth(app);
+
+// ══════════════════════════ STATE ══════════════════════════
+let currentUser = null;
+let places = [];
+let soundFiles = {};
+let nextId = 1;
+let selectedCoords = null;
+let selectedMP3 = null;
+let selectedDistance = 50;
+let currentMarker = null;
+let allTrips = [];
+let dragSrcIndex = null;
+
+// ══════════════════════════ EXPOSE TO WINDOW ══════════════════════════
+window.switchView = switchView;
+window.openAuthModal = openAuthModal;
+window.closeModal = closeModal;
+window.handleLogout = handleLogout;
+window.addPlace = addPlace;
+window.exportZip = exportZip;
+window.openSaveModal = openSaveModal;
+window.saveTrip = saveTrip;
+window.filterTrips = filterTrips;
+window.setManualCoords = setManualCoords;
+window.useMyLocation = useMyLocation;
+window.openTripDetail = openTripDetail;
+
+// ══════════════════════════ MAP ══════════════════════════
+const map = L.map('map', {
+  minZoom: 3, maxZoom: 18,
+  maxBounds: [[-85,-180],[85,180]],
+  maxBoundsViscosity: 1.0
+}).setView([50.04, 18.63], 13);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '©OpenStreetMap ©CARTO'
+}).addTo(map);
+
+map.on('click', e => {
+  selectedCoords = [e.latlng.lat, e.latlng.lng];
+  placeMarker(selectedCoords);
+  updateCoordDisplay();
+  checkAddBtn();
 });
-document.getElementById('setCoordsBtn').addEventListener('click', () => {
+
+function placeMarker([lat, lng]) {
+  if (currentMarker) map.removeLayer(currentMarker);
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:14px; height:14px; border-radius:50%;
+      background: #00e5ff;
+      border: 2px solid #000;
+      box-shadow: 0 0 12px #00e5ff, 0 0 4px #00e5ff;
+    "></div>`,
+    iconSize: [14,14],
+    iconAnchor: [7,7]
+  });
+  currentMarker = L.marker([lat, lng], { icon }).addTo(map);
+}
+
+// ══════════════════════════ AUTH STATE ══════════════════════════
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+  const loginBtn = document.getElementById('login-btn');
+  const userInfo = document.getElementById('user-info');
+  const emailDisplay = document.getElementById('user-email-display');
+  const avatar = document.getElementById('user-avatar');
+
+  if (user) {
+    loginBtn.style.display = 'none';
+    userInfo.classList.add('visible');
+    const email = user.email || '';
+    emailDisplay.textContent = email;
+    avatar.textContent = email[0]?.toUpperCase() || '?';
+  } else {
+    loginBtn.style.display = 'block';
+    userInfo.classList.remove('visible');
+  }
+});
+
+// ══════════════════════════ AUTH MODAL ══════════════════════════
+function openAuthModal(mode) {
+  const overlay = document.getElementById('modal-overlay');
+  const content = document.getElementById('modal-content');
+  overlay.classList.add('open');
+  renderAuthForm(mode, content);
+}
+
+function renderAuthForm(mode, container) {
+  const isLogin = mode === 'login';
+  container.innerHTML = `
+    <div class="modal-title">${isLogin ? 'Zaloguj się' : 'Utwórz konto'}</div>
+    <div class="modal-sub">${isLogin ? 'Wróć do swoich wycieczek' : 'Zacznij tworzyć i udostępniać trasy'}</div>
+    <div class="modal-field">
+      <label>E-mail</label>
+      <input id="auth-email" type="email" class="modal-input" placeholder="jan@przykład.pl" autocomplete="email">
+    </div>
+    <div class="modal-field">
+      <label>Hasło</label>
+      <input id="auth-password" type="password" class="modal-input" placeholder="••••••••" autocomplete="${isLogin ? 'current-password' : 'new-password'}">
+    </div>
+    <div class="modal-err" id="auth-err"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" style="width:100%; padding:12px;" onclick="submitAuth('${mode}')">
+        ${isLogin ? 'Zaloguj' : 'Zarejestruj się'}
+      </button>
+      <div class="modal-switch">
+        ${isLogin
+          ? `Nie masz konta? <a onclick="renderAuthForm('register', document.getElementById('modal-content'))">Zarejestruj się</a>`
+          : `Masz już konto? <a onclick="renderAuthForm('login', document.getElementById('modal-content'))">Zaloguj się</a>`}
+      </div>
+    </div>
+  `;
+  setTimeout(() => document.getElementById('auth-email')?.focus(), 50);
+}
+
+window.renderAuthForm = renderAuthForm;
+
+window.submitAuth = async (mode) => {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-err');
+  errEl.textContent = '';
+
+  if (!email || !password) { errEl.textContent = 'Wypełnij wszystkie pola.'; return; }
+
+  try {
+    if (mode === 'login') {
+      await signInWithEmailAndPassword(auth, email, password);
+    } else {
+      await createUserWithEmailAndPassword(auth, email, password);
+    }
+    closeModal();
+    showToast('Zalogowano pomyślnie!', 'success');
+  } catch (e) {
+    const msgs = {
+      'auth/email-already-in-use': 'Ten e-mail jest już zarejestrowany.',
+      'auth/invalid-email': 'Niepoprawny adres e-mail.',
+      'auth/weak-password': 'Hasło musi mieć co najmniej 6 znaków.',
+      'auth/user-not-found': 'Nie znaleziono konta.',
+      'auth/wrong-password': 'Niepoprawne hasło.',
+      'auth/invalid-credential': 'Niepoprawny e-mail lub hasło.',
+    };
+    errEl.textContent = msgs[e.code] || 'Błąd: ' + e.message;
+  }
+};
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+async function handleLogout() {
+  await signOut(auth);
+  showToast('Wylogowano.', 'info');
+}
+
+// ══════════════════════════ PLACE MANAGEMENT ══════════════════════════
+function updateCoordDisplay() {
+  const el = document.getElementById('coord-display');
+  if (selectedCoords) {
+    el.classList.add('has-coords');
+    el.innerHTML = `<span style="color:var(--text-dim)">LAT</span> ${selectedCoords[0].toFixed(6)}&nbsp;&nbsp;<span style="color:var(--text-dim)">LNG</span> ${selectedCoords[1].toFixed(6)}`;
+  } else {
+    el.classList.remove('has-coords');
+    el.textContent = 'Kliknij na mapie lub użyj lokalizacji';
+  }
+}
+
+function checkAddBtn() {
+  document.getElementById('addPlaceBtn').disabled = !(selectedCoords && selectedMP3);
+}
+
+function setManualCoords() {
   const lat = parseFloat(document.getElementById('latInput').value);
   const lng = parseFloat(document.getElementById('lngInput').value);
-
-  if (isNaN(lat) || isNaN(lng) || lat < -85 || lat > 85 || lng < -180 || lng > 180) {
-    alert('Please enter valid latitude and longitude values.');
-    return;
-  }
-
+  if (isNaN(lat) || isNaN(lng)) { showToast('Podaj poprawne współrzędne.', 'error'); return; }
   selectedCoords = [lat, lng];
+  placeMarker(selectedCoords);
+  map.setView(selectedCoords, map.getZoom());
+  updateCoordDisplay();
+  checkAddBtn();
+}
 
-  if (currentMarker) map.removeLayer(currentMarker);
-  currentMarker = L.marker([lat, lng]).addTo(map);
-  map.setView([lat, lng], map.getZoom()); // Optional: center map on new point
+function useMyLocation() {
+  if (!navigator.geolocation) { showToast('Geolokalizacja niedostępna.', 'error'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    selectedCoords = [pos.coords.latitude, pos.coords.longitude];
+    document.getElementById('latInput').value = selectedCoords[0].toFixed(6);
+    document.getElementById('lngInput').value = selectedCoords[1].toFixed(6);
+    placeMarker(selectedCoords);
+    map.setView(selectedCoords, 14);
+    updateCoordDisplay();
+    checkAddBtn();
+  }, () => showToast('Nie można pobrać lokalizacji.', 'error'));
+}
 
-  updateInfo();
+document.getElementById('mp3Input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  const label = document.getElementById('mp3-label');
+  const labelText = document.getElementById('mp3-label-text');
+  if (file && file.type === 'audio/mpeg') {
+    selectedMP3 = file;
+    label.classList.add('has-file');
+    labelText.textContent = '✓ ' + file.name;
+  } else {
+    selectedMP3 = null;
+    label.classList.remove('has-file');
+    labelText.textContent = 'Wybierz plik MP3';
+  }
+  checkAddBtn();
 });
-function renderPlace(p, index) {
+
+document.getElementById('distanceRange').addEventListener('input', e => {
+  selectedDistance = parseInt(e.target.value);
+  document.getElementById('distanceValue').textContent = selectedDistance + ' m';
+});
+
+function addPlace() {
+  if (!selectedCoords || !selectedMP3) return;
+  const name = document.getElementById('placeNameInput').value.trim() || selectedMP3.name.replace('.mp3','');
+  const fileName = Date.now() + '_' + selectedMP3.name;
+
+  const place = {
+    id: nextId++,
+    name,
+    lat: selectedCoords[0],
+    lng: selectedCoords[1],
+    sound: fileName,
+    radius: selectedDistance,
+    side: 'center'
+  };
+
+  places.push(place);
+
+  // Add map circle
+  const circle = L.circle([place.lat, place.lng], {
+    radius: place.radius,
+    color: '#00e5ff', fillColor: '#00e5ff', fillOpacity: 0.08,
+    weight: 1
+  }).addTo(map);
+
+  const reader = new FileReader();
+  reader.onload = () => { soundFiles[fileName] = reader.result; };
+  reader.readAsArrayBuffer(selectedMP3);
+
+  // Reset
+  selectedMP3 = null;
+  document.getElementById('placeNameInput').value = '';
+  document.getElementById('mp3Input').value = '';
+  document.getElementById('mp3-label').classList.remove('has-file');
+  document.getElementById('mp3-label-text').textContent = 'Wybierz plik MP3';
+  checkAddBtn();
+  refreshPlaceList(true);
+  showToast('Miejsce dodane: ' + name, 'success');
+}
+
+// ══════════════════════════ DRAG & DROP ══════════════════════════
+function refreshPlaceList(animateLast = false) {
+  const list = document.getElementById('placeList');
+  list.innerHTML = '';
+  document.getElementById('place-count').textContent = places.length;
+
+  places.forEach((p, i) => {
+    const entry = buildPlaceEntry(p, i);
+    if (animateLast && i === places.length - 1) entry.classList.add('new-entry');
+    list.appendChild(entry);
+  });
+}
+
+function buildPlaceEntry(p, index) {
   const div = document.createElement('div');
-  div.className = 'place-entry';
+  div.className = `place-entry side-${p.side}`;
   div.draggable = true;
   div.dataset.index = index;
 
-  let sideClass = "place-center";
-  if (p.side === "left") sideClass = "place-left";
-  if (p.side === "right") sideClass = "place-right";
-
   div.innerHTML = `
-    <div class="place-box ${sideClass}">
-      <strong>${p.name}</strong><br>
-      ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}
+    <div class="place-inner">
+      <div class="place-side-indicator"></div>
+      <div class="place-body">
+        <div class="place-name">${p.name}</div>
+        <div class="place-meta">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)} · ${p.radius}m</div>
+        <div class="place-side-badge">${p.side === 'left' ? '◀ LEWO' : p.side === 'right' ? 'PRAWO ▶' : '● ŚRODEK'}</div>
+      </div>
+      <div class="place-actions">
+        <button class="side-btn ${p.side==='left'?'active-left':''}" title="Lewo" onclick="setSide(${index},'left')">◀</button>
+        <button class="side-btn ${p.side==='center'?'active-center':''}" title="Środek" onclick="setSide(${index},'center')">●</button>
+        <button class="side-btn ${p.side==='right'?'active-right':''}" title="Prawo" onclick="setSide(${index},'right')">▶</button>
+        <button class="side-btn delete-btn" title="Usuń" onclick="removePlace(${index})">✕</button>
+      </div>
     </div>
   `;
 
-  // DRAG START
-  div.addEventListener('dragstart', (e) => {
-    e.dataTransfer.setData('text/plain', index);
+  // DRAG EVENTS
+  div.addEventListener('dragstart', e => {
+    dragSrcIndex = index;
+    div.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
   });
 
-  // DRAG OVER → preview
-  div.addEventListener('dragover', (e) => {
+  div.addEventListener('dragend', () => {
+    div.classList.remove('dragging');
+    document.querySelectorAll('.place-entry').forEach(el => {
+      el.classList.remove('drag-over-before', 'drag-over-after');
+    });
+  });
+
+  div.addEventListener('dragover', e => {
     e.preventDefault();
-
+    e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('.place-entry').forEach(el => {
+      el.classList.remove('drag-over-before', 'drag-over-after');
+    });
     const rect = div.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-
-    div.classList.remove('drag-left', 'drag-right');
-
-    if (x < rect.width * 0.3) {
-      div.classList.add('drag-left');
-    } else if (x > rect.width * 0.7) {
-      div.classList.add('drag-right');
+    const mid = rect.top + rect.height / 2;
+    if (e.clientY < mid) {
+      div.classList.add('drag-over-before');
+    } else {
+      div.classList.add('drag-over-after');
     }
   });
 
-  // DROP
-  div.addEventListener('drop', (e) => {
-    e.preventDefault();
+  div.addEventListener('dragleave', () => {
+    div.classList.remove('drag-over-before', 'drag-over-after');
+  });
 
-    const draggedIndex = Number(e.dataTransfer.getData('text/plain'));
-    const dragged = places[draggedIndex];
+  div.addEventListener('drop', e => {
+    e.preventDefault();
+    div.classList.remove('drag-over-before', 'drag-over-after');
+    if (dragSrcIndex === null || dragSrcIndex === index) return;
 
     const rect = div.getBoundingClientRect();
-    const x = e.clientX - rect.left;
+    const mid = rect.top + rect.height / 2;
+    const insertBefore = e.clientY < mid;
 
-// usuń ze starego miejsca zawsze
-places.splice(draggedIndex, 1);
+    const [dragged] = places.splice(dragSrcIndex, 1);
+    const newIndex = insertBefore ? index : index + (dragSrcIndex < index ? 0 : 1);
+    places.splice(Math.max(0, dragSrcIndex < index ? newIndex - 1 : newIndex), 0, dragged);
 
-if (x < rect.width * 0.3) {
-  dragged.side = "left";
-} 
-else if (x > rect.width * 0.7) {
-  dragged.side = "right";
-} 
-else {
-  dragged.side = "center"; // 👈 NOWE
-}
-
-// wrzuć w nowe miejsce
-places.splice(index, 0, dragged);
-
-    div.classList.remove('drag-left', 'drag-right');
+    dragSrcIndex = null;
     refreshPlaceList();
   });
 
-  placeListEl.appendChild(div);
+  return div;
 }
 
-function refreshPlaceList() {
-  placeListEl.innerHTML = '';
-  places.forEach((p, i) => renderPlace(p, i));
-}
-document.getElementById('useLocationBtn').addEventListener('click', () => {
-  if (!navigator.geolocation) {
-    alert('Geolocation is not supported by your browser.');
-    return;
+window.setSide = (index, side) => {
+  places[index].side = side;
+  const entry = document.querySelector(`[data-index="${index}"]`);
+  if (entry) {
+    // animate side change
+    entry.style.transform = 'scale(0.97)';
+    setTimeout(() => {
+      entry.style.transform = '';
+      refreshPlaceList();
+    }, 150);
   }
-
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      selectedCoords = [lat, lng];
-
-      document.getElementById('latInput').value = lat.toFixed(6);
-      document.getElementById('lngInput').value = lng.toFixed(6);
-
-      if (currentMarker) map.removeLayer(currentMarker);
-      currentMarker = L.marker([lat, lng]).addTo(map);
-      map.setView([lat, lng], 13); // Zoom in closer to current location
-
-      updateInfo();
-    },
-    (err) => {
-      alert('Unable to retrieve location: ' + err.message);
-    }
-  );
-});
-  map.on('click', function (e) {
-    selectedCoords = [e.latlng.lat, e.latlng.lng];
-    if (currentMarker) map.removeLayer(currentMarker);
-    currentMarker = L.marker(e.latlng).addTo(map);
-    updateInfo();
-  });
-
-  document.getElementById('mp3Input').addEventListener('change', function (e) {
-    const file = e.target.files[0];
-    if (file && file.type === 'audio/mpeg') {
-      selectedMP3 = file;
-    } else {
-      selectedMP3 = null;
-    }
-    updateInfo();
-  });
-
-  document.getElementById('addPlaceBtn').addEventListener('click', () => {
-    if (!selectedCoords || !selectedMP3) return;
-
-    const customName = nameInput.value.trim() || selectedMP3.name;
-    const fileName = Date.now() + '_' + selectedMP3.name;
-
-const newPlace = {
-  id: nextId++,
-  name: customName,
-  lat: selectedCoords[0],
-  lng: selectedCoords[1],
-  sound: fileName,
-  radius: selectedDistance,
-  side: "center" // 👈 NOWE
 };
 
-    places.push(newPlace);
+window.removePlace = (index) => {
+  const entry = document.querySelector(`[data-index="${index}"]`);
+  if (entry) {
+    entry.style.transform = 'translateX(-20px)';
+    entry.style.opacity = '0';
+    setTimeout(() => {
+      places.splice(index, 1);
+      refreshPlaceList();
+    }, 200);
+  }
+};
 
-    const reader = new FileReader();
-    reader.onload = function () {
-      soundFiles[fileName] = reader.result;
-    };
-    reader.readAsArrayBuffer(selectedMP3);
+// ══════════════════════════ VIEW SWITCHING ══════════════════════════
+function switchView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  const navBtns = document.querySelectorAll('.nav-btn');
+  navBtns[name === 'creator' ? 0 : 1].classList.add('active');
+  if (name === 'trips') loadTrips();
+  if (name === 'creator') setTimeout(() => map.invalidateSize(), 100);
+}
 
-    selectedMP3 = null;
-    nameInput.value = '';
-    document.getElementById('mp3Input').value = '';
-    updateInfo();
-    refreshPlaceList();
-  });
-document.getElementById('addtrip').addEventListener('click', async () => {
-  const tripTitle = prompt("Podaj nazwę wycieczki:");
-  if (!tripTitle || places.length === 0) {
-    alert("Brak miejsc lub tytułu.");
+// ══════════════════════════ TRIPS ══════════════════════════
+let currentFilter = 'all';
+
+async function loadTrips() {
+  const grid = document.getElementById('trips-grid');
+  grid.innerHTML = `<div class="loading-spinner"><div class="spinner-ring"></div><span>Ładowanie wycieczek...</span></div>`;
+
+  try {
+    const q = query(collection(db, 'trips'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    allTrips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTrips(allTrips);
+  } catch(e) {
+    grid.innerHTML = `<div class="loading-spinner" style="color:var(--accent2)">Błąd ładowania. Sprawdź połączenie.</div>`;
+  }
+}
+
+function filterTrips(type, btn) {
+  currentFilter = type;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  let filtered = allTrips;
+  if (type === 'mine' && currentUser) {
+    filtered = allTrips.filter(t => t.authorId === currentUser.uid);
+  } else if (type === 'mine' && !currentUser) {
+    showToast('Zaloguj się, żeby zobaczyć swoje wycieczki.', 'info');
+    return;
+  }
+  renderTrips(filtered);
+}
+
+function renderTrips(trips) {
+  const grid = document.getElementById('trips-grid');
+  grid.innerHTML = '';
+
+  if (trips.length === 0) {
+    grid.innerHTML = `<div class="loading-spinner">Brak wycieczek.</div>`;
     return;
   }
 
-  await saveTripToFirebase(tripTitle, places, soundFiles);
-});
+  trips.forEach((trip, i) => {
+    const card = buildTripCard(trip, i);
+    grid.appendChild(card);
+  });
+}
 
-async function saveTripToFirebase(tripTitle, places, soundFiles) {
-  const uploadedPlaces = [];
+function buildTripCard(trip, i) {
+  const div = document.createElement('div');
+  div.className = 'trip-card';
+  div.style.animationDelay = (i * 0.05) + 's';
 
-  for (const place of places) {
-    const mp3Blob = soundFiles[place.sound]; // sound = np. "zuraw.mp3"
-    if (!mp3Blob) continue;
+  const places = trip.places || [];
+  const count = places.length;
 
-    // Upload MP3
-    const mp3Ref = ref(storage, 'trips/' + Date.now() + '_' + place.sound);
-    await uploadBytes(mp3Ref, mp3Blob);
-    const mp3Url = await getDownloadURL(mp3Ref);
+  // Mini map visualization
+  const dots = places.slice(0, 8).map(p => {
+    const x = ((p.lng + 180) / 360 * 100).toFixed(1);
+    const y = ((90 - p.lat) / 180 * 100).toFixed(1);
+    return `<div class="trip-dot" style="left:${x}%;top:${y}%"></div>`;
+  }).join('');
 
-    uploadedPlaces.push({
-      id: place.id,
-      name: place.name,
-      lat: place.lat,
-      lng: place.lng,
-      soundUrl: mp3Url
+  const author = trip.authorEmail ? trip.authorEmail.split('@')[0] : 'anonim';
+  const dateStr = trip.createdAt?.toDate ? trip.createdAt.toDate().toLocaleDateString('pl-PL') : '—';
+
+  div.innerHTML = `
+    <div class="trip-card-map">${dots}</div>
+    <div class="trip-card-body">
+      <div class="trip-card-title">${trip.title}</div>
+      <div class="trip-card-meta">
+        <span>📍 ${count} miejsc</span>
+        <span>📅 ${dateStr}</span>
+      </div>
+      <div class="trip-card-author">@${author}</div>
+    </div>
+    <div class="trip-card-footer">
+      <span style="font-size:12px;color:var(--text-dim)">${count > 0 ? places[0].name : ''}</span>
+      <button class="btn btn-primary" onclick="openTripDetail('${trip.id}')">Szczegóły</button>
+    </div>
+  `;
+  return div;
+}
+
+function openTripDetail(tripId) {
+  const trip = allTrips.find(t => t.id === tripId);
+  if (!trip) return;
+
+  const overlay = document.getElementById('trip-detail-overlay');
+  const content = document.getElementById('trip-detail-content');
+  overlay.classList.add('open');
+
+  const dateStr = trip.createdAt?.toDate ? trip.createdAt.toDate().toLocaleDateString('pl-PL') : '—';
+  const author = trip.authorEmail ? trip.authorEmail.split('@')[0] : 'anonim';
+
+  const placeRows = (trip.places || []).map((p, i) => `
+    <div class="detail-place-row side-${p.side || 'center'}">
+      <div class="detail-place-num">#${i+1}</div>
+      <div class="detail-place-info">
+        <div class="detail-place-name">${p.name}</div>
+        <div class="detail-place-coords">${(p.lat||0).toFixed(5)}, ${(p.lng||0).toFixed(5)} · ${p.radius||'?'}m</div>
+      </div>
+      ${p.soundUrl ? `<a href="${p.soundUrl}" target="_blank" class="detail-play-btn">▶ Odtwórz</a>` : ''}
+    </div>
+  `).join('');
+
+  content.innerHTML = `
+    <div class="trip-detail-title">${trip.title}</div>
+    <div class="trip-detail-author">@${author} · ${dateStr}</div>
+    ${placeRows || '<p style="color:var(--text-dim);font-size:14px">Brak miejsc w tej wycieczce.</p>'}
+  `;
+}
+
+// ══════════════════════════ SAVE TRIP ══════════════════════════
+function openSaveModal() {
+  if (!currentUser) {
+    openAuthModal('login');
+    showToast('Zaloguj się, żeby zapisać wycieczkę.', 'info');
+    return;
+  }
+  if (places.length === 0) { showToast('Dodaj przynajmniej jedno miejsce.', 'error'); return; }
+  document.getElementById('save-modal-overlay').classList.add('open');
+}
+
+async function saveTrip() {
+  const title = document.getElementById('tripTitleInput').value.trim();
+  const errEl = document.getElementById('save-err');
+  if (!title) { errEl.textContent = 'Podaj nazwę wycieczki.'; return; }
+  errEl.textContent = '';
+
+  const btn = document.querySelector('#save-modal-overlay .btn-primary');
+  btn.textContent = 'Zapisywanie...';
+  btn.disabled = true;
+
+  try {
+    const uploadedPlaces = [];
+    for (const place of places) {
+      const blob = soundFiles[place.sound];
+      let soundUrl = null;
+      if (blob) {
+        const r = ref(storage, `trips/${Date.now()}_${place.sound}`);
+        await uploadBytes(r, blob);
+        soundUrl = await getDownloadURL(r);
+      }
+      uploadedPlaces.push({
+        id: place.id,
+        name: place.name,
+        lat: place.lat,
+        lng: place.lng,
+        radius: place.radius,
+        side: place.side,
+        soundUrl
+      });
+    }
+
+    await addDoc(collection(db, 'trips'), {
+      title,
+      places: uploadedPlaces,
+      authorId: currentUser.uid,
+      authorEmail: currentUser.email,
+      createdAt: serverTimestamp()
     });
+
+    document.getElementById('save-modal-overlay').classList.remove('open');
+    document.getElementById('tripTitleInput').value = '';
+    showToast('Wycieczka zapisana! 🎉', 'success');
+  } catch(e) {
+    errEl.textContent = 'Błąd zapisu: ' + e.message;
+  } finally {
+    btn.textContent = 'Zapisz w chmurze';
+    btn.disabled = false;
   }
-
-  // Save trip object
-  const docRef = await addDoc(collection(db, "trips"), {
-    title: tripTitle,
-    places: uploadedPlaces,
-    createdAt: serverTimestamp()
-  });
-
-  alert("Wycieczka zapisana! ID: " + docRef.id);
 }
 
-document.getElementById('exportZipBtn').addEventListener('click', () => {
+// ══════════════════════════ EXPORT ZIP ══════════════════════════
+function exportZip() {
+  if (places.length === 0) { showToast('Brak miejsc do eksportu.', 'error'); return; }
   const zip = new JSZip();
-
-  // Create a new array with ids assigned dynamically on export
-function serializePlaces(list) {
-  return list.map(p => ({
-    id: p.id,
-    name: p.name,
-    lat: p.lat,
-    lng: p.lng,
-    sound: p.sound,
-    radius: p.radius,
-    left: serializePlaces(p.left),
-    right: serializePlaces(p.right)
+  const placesData = places.map((p, i) => ({
+    id: i + 1, name: p.name, lat: p.lat, lng: p.lng,
+    sound: p.sound, radius: p.radius, side: p.side
   }));
+  zip.file('places.json', JSON.stringify(placesData, null, 2));
+  const sounds = zip.folder('sounds');
+  for (const [name, data] of Object.entries(soundFiles)) {
+    sounds.file(name, data);
+  }
+  zip.generateAsync({ type: 'blob' }).then(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'soundmap_trip.zip';
+    a.click();
+    showToast('ZIP pobrany!', 'success');
+  });
 }
 
-const placesWithIds = places.map((p, index) => ({
-  id: index + 1,
-  name: p.name,
-  lat: p.lat,
-  lng: p.lng,
-  sound: p.sound,
-  radius: p.radius,
-  side: p.side // 👈 NOWE
-}));
+// ══════════════════════════ TOAST ══════════════════════════
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
 
+window.showToast = showToast;
 
-  zip.file("places.json", JSON.stringify(placesWithIds, null, 2));
-  const soundsFolder = zip.folder("sounds");
+// ══════════════════════════ INIT ══════════════════════════
+updateCoordDisplay();
+refreshPlaceList();
 
-  for (const [filename, data] of Object.entries(soundFiles)) {
-    soundsFolder.file(filename, data);
-  }
-
-  zip.generateAsync({ type: "blob" }).then(blob => {
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "places_with_sounds.zip";
-    link.click();
+// Try auto-locate
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    selectedCoords = [lat, lng];
+    document.getElementById('latInput').value = lat.toFixed(6);
+    document.getElementById('lngInput').value = lng.toFixed(6);
+    placeMarker(selectedCoords);
+    map.setView(selectedCoords, 14);
+    updateCoordDisplay();
+    checkAddBtn();
   });
+}
+
+// Close modals on overlay click
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
 });
-
-  updateInfo();
-  refreshPlaceList();
-loadTrips();
+document.getElementById('trip-detail-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) document.getElementById('trip-detail-overlay').classList.remove('open');
+});
+document.getElementById('save-modal-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) document.getElementById('save-modal-overlay').classList.remove('open');
+});
 </script>
-
 </body>
 </html>
