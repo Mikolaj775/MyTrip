@@ -1,1 +1,594 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Map Sound Marker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <style>
+    input[type="file"]::-webkit-file-upload-button {
+  margin-right: -1000px; /* lub dowolna duża liczba */
+}
+
+input[type="file"]::file-selector-button {
+  margin-right: -1000px;
+}
+
+input[type="file"] {
+  margin-right: -150px;
+  color: transparent;
+}
+
+    body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: #04a2c9;}
+    #map { height: 60%; width: 80%; position: relative;left: 10%;}
+    .controls {
+
+      width: 75%;
+      position: relative;
+      left: 10%;
+      margin-top: 10px;
+      padding: 40px;
+      background: #f0f0f0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 15px;
+    }
+    .info {
+      font-size: 14px;
+      white-space: pre-line;
+    }
+    input[type="file"], input[type="text"] {
+      font-size: 14px;
+      padding: 4px;
+    }
+    button {
+      padding: 6px 12px;
+      font-size: 14px;
+    }
+    #placeList {
+      width: 79%; position: relative;left: 10%;
+      flex: 1;
+      overflow-y: auto;
+      background: #fafafa;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+      user-select: none;
+    }
+    .place-entry {
+  display: flex;
+  width: 100%;
+  margin-bottom: 6px;
+  border: 1px solid #ccc;
+  background: white;
+}
+
+.drop-zone {
+  width: 30%;
+  padding: 10px;
+  text-align: center;
+  background: #eee;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.drop-zone.center {
+  width: 40%;
+  background: #fff;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+}
+
+.drop-zone:hover {
+  background: #cce5ff;
+}
+
+.drop-zone.left:hover {
+  background: #a8d5ff;
+}
+
+.drop-zone.right:hover {
+  background: #a8d5ff;
+}
+    .place-entry.dragging {
+      opacity: 0.5;
+    }
+    .place-info {
+      flex-grow: 1;
+    }
+    .place-entry strong {
+      display: inline-block;
+      min-width: 100px;
+    }
+    #tripList {
+
+      width: 100%;
+      height: 90%;
+      display: none;
+    }
+    #tripcreator {
+      width: 100%;
+      height: 200%;
+    }
+    .place-entry {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  margin-bottom: 8px;
+}
+
+.place-box {
+  position: absolute;
+  width: 45%;
+  padding: 8px;
+  background: white;
+  border: 1px solid #ccc;
+  transition: 0.2s;
+}
+
+/* 👇 środek */
+.place-center {
+  left: 27.5%;
+}
+
+/* 👇 lewa strona */
+.place-left {
+  left: 0;
+  background: #e6f2ff;
+}
+
+/* 👇 prawa strona */
+.place-right {
+  right: 0;
+  background: #ffe6e6;
+}
+
+/* 👇 hover preview */
+.place-entry.drag-left .place-box {
+  left: 0 !important;
+}
+.place-entry.drag-right .place-box {
+  right: 0 !important;
+}
+  </style>
+</head>
+<body>
+<button id="toggle">WYCIECZKI</button>
+<div id="tripList" style="width:79%; margin-left:10%; background:#fff; padding:10px; border:1px solid #ccc;">
+<h3 style="margin-left:10%">Zapisane wycieczki</h3>
+
+
+</div>
+
+
+
+<div id="tripcreator">
+<div id="map"></div>
+
+<div class="controls">
+  <input type="number" id="latInput" placeholder="Latitude" step="any">
+  <input type="number" id="lngInput" placeholder="Longitude" step="any">
+  <button id="setCoordsBtn">Set Coordinates</button>
+    <button id="useLocationBtn">Use My Location</button>
+  <div class="info" id="info">No coordinates selected\nNo MP3 selected</div>
+  <input type="text" id="placeNameInput" placeholder="Place name" />
+  <input type="file" id="mp3Input" accept=".mp3">
+  <label for="distanceRange">Detection distance (meters):</label>
+<input type="range" id="distanceRange" min="10" max="100" step="1" value="15">
+<span id="distanceValue">15 m</span>
+
+  <button id="addPlaceBtn">Add Place</button>
+  <button id="exportZipBtn">Export ZIP</button>
+  <button id="addtrip">Upload trip</button>
+</div>
+
+<div id="placeList"></div>
+</div>
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-storage.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyBuBf-QqE6q0U2aH7qgRhzbwu2_dTs5K6w",
+    authDomain: "mytrip-aa359.firebaseapp.com",
+    projectId: "mytrip-aa359",
+    storageBucket: "mytrip-aa359.firebasestorage.app",
+    messagingSenderId: "79019124080",
+    appId: "1:79019124080:web:3f77f514938a98aa4b5bb5",
+    measurementId: "G-CXNERF2JVT"
+
+  };
+
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+const storage = getStorage(app);
+
+import { getDocs, collection } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+async function loadTrips() {
+  const snapshot = await getDocs(collection(db, "trips"));
+  const trips = [];
+
+  snapshot.forEach(doc => {
+    trips.push({ id: doc.id, ...doc.data() });
+  });
+
+  displayTrips(trips); // Napisz funkcję, która pokazuje listę wycieczek w UI
+}
+</script>
+<script>
+  const map = L.map('map', {
+  minZoom: 3,
+  maxZoom: 18,
+  
+  maxBounds: [
+    [-85, -180],  // Southwest corner
+    [85, 180]     // Northeast corner
+  ],
+  maxBoundsViscosity: 10 // Prevent dragging outside bounds
+}).setView([20, 0], 2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  let selectedCoords = null;
+  let selectedMP3 = null;
+  let currentMarker = null;
+  let places = [];
+  let soundFiles = {};
+  let nextId = 1; // incremental id counter
+
+  const tripcreator = document.getElementById('tripcreator');
+  const tripList = document.getElementById('tripList');
+  const infoEl = document.getElementById('info');
+  const placeListEl = document.getElementById('placeList');
+  const nameInput = document.getElementById('placeNameInput');
+const distanceRange = document.getElementById('distanceRange');
+const distanceValue = document.getElementById('distanceValue');
+
+let selectedDistance = 100;
+
+distanceRange.addEventListener('input', () => {
+  selectedDistance = parseInt(distanceRange.value);
+  distanceValue.textContent = selectedDistance + " m";
+});
+
+  function updateInfo() {
+    const coordText = selectedCoords ? `Lat: ${selectedCoords[0].toFixed(5)}\nLng: ${selectedCoords[1].toFixed(5)}` : 'No coordinates selected';
+    const mp3Text = selectedMP3 ? `MP3: ${selectedMP3.name}` : 'No MP3 selected';
+    infoEl.textContent = `${coordText}\n${mp3Text}`;
+  }
+    navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      selectedCoords = [lat, lng];
+
+      document.getElementById('latInput').value = lat.toFixed(6);
+      document.getElementById('lngInput').value = lng.toFixed(6);
+
+      if (currentMarker) map.removeLayer(currentMarker);
+      currentMarker = L.marker([lat, lng]).addTo(map);
+      map.setView([lat, lng], 13); // Zoom in closer to current location
+
+      updateInfo();
+    },
+    (err) => {
+      alert('Unable to retrieve location: ' + err.message);
+    }
+  );
+  function displayTrips(trips) {
+  const tripListEl = document.getElementById("tripList");
+  tripListEl.innerHTML = "";
+
+  if (trips.length === 0) {
+    tripListEl.innerHTML = "<p>Brak zapisanych wycieczek.</p>";
+    return;
+  }
+
+  trips.forEach(trip => {
+    const div = document.createElement("div");
+    div.style.border = "1px solid #ddd";
+    div.style.padding = "8px";
+    div.style.marginBottom = "8px";
+    div.style.background = "#f9f9f9";
+div.innerHTML = `
+  <div class="drop-zone left">⬅️</div>
+
+  <div class="drop-zone center">
+    <strong>${p.name}</strong><br>
+    ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}
+  </div>
+
+  <div class="drop-zone right">➡️</div>
+`;
+
+    div.querySelector("button").addEventListener("click", () => {
+      showTripDetails(trip);
+    });
+
+    tripListEl.appendChild(div);
+  });
+}
+function showTripDetails(trip) {
+  const details = trip.places.map(p =>
+    `• ${p.name} [${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}] — <a href="${p.soundUrl}" target="_blank">Odtwórz</a>`
+  ).join("<br/>");
+
+  alert(`Wycieczka: ${trip.title}\n\n${details.replace(/<br\/>/g, '\n').replace(/<[^>]+>/g, '')}`);
+}
+document.getElementById('toggle').addEventListener('click', () => {
+  const tripList = document.getElementById('tripList');
+  const tripcreator = document.getElementById('tripcreator');
+  tripList.style.display = tripList.style.display === "none" ? "block" : "none";
+  tripcreator.style.display = tripList.style.display === "none" ? "block" : "none";
+});
+document.getElementById('setCoordsBtn').addEventListener('click', () => {
+  const lat = parseFloat(document.getElementById('latInput').value);
+  const lng = parseFloat(document.getElementById('lngInput').value);
+
+  if (isNaN(lat) || isNaN(lng) || lat < -85 || lat > 85 || lng < -180 || lng > 180) {
+    alert('Please enter valid latitude and longitude values.');
+    return;
+  }
+
+  selectedCoords = [lat, lng];
+
+  if (currentMarker) map.removeLayer(currentMarker);
+  currentMarker = L.marker([lat, lng]).addTo(map);
+  map.setView([lat, lng], map.getZoom()); // Optional: center map on new point
+
+  updateInfo();
+});
+function renderPlace(p, index) {
+  const div = document.createElement('div');
+  div.className = 'place-entry';
+  div.draggable = true;
+  div.dataset.index = index;
+
+  let sideClass = "place-center";
+  if (p.side === "left") sideClass = "place-left";
+  if (p.side === "right") sideClass = "place-right";
+
+  div.innerHTML = `
+    <div class="place-box ${sideClass}">
+      <strong>${p.name}</strong><br>
+      ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}
+    </div>
+  `;
+
+  // DRAG START
+  div.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/plain', index);
+  });
+
+  // DRAG OVER → preview
+  div.addEventListener('dragover', (e) => {
+    e.preventDefault();
+
+    const rect = div.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+
+    div.classList.remove('drag-left', 'drag-right');
+
+    if (x < rect.width * 0.3) {
+      div.classList.add('drag-left');
+    } else if (x > rect.width * 0.7) {
+      div.classList.add('drag-right');
+    }
+  });
+
+  // DROP
+  div.addEventListener('drop', (e) => {
+    e.preventDefault();
+
+    const draggedIndex = Number(e.dataTransfer.getData('text/plain'));
+    const dragged = places[draggedIndex];
+
+    const rect = div.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+
+// usuń ze starego miejsca zawsze
+places.splice(draggedIndex, 1);
+
+if (x < rect.width * 0.3) {
+  dragged.side = "left";
+} 
+else if (x > rect.width * 0.7) {
+  dragged.side = "right";
+} 
+else {
+  dragged.side = "center"; // 👈 NOWE
+}
+
+// wrzuć w nowe miejsce
+places.splice(index, 0, dragged);
+
+    div.classList.remove('drag-left', 'drag-right');
+    refreshPlaceList();
+  });
+
+  placeListEl.appendChild(div);
+}
+
+function refreshPlaceList() {
+  placeListEl.innerHTML = '';
+  places.forEach((p, i) => renderPlace(p, i));
+}
+document.getElementById('useLocationBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      selectedCoords = [lat, lng];
+
+      document.getElementById('latInput').value = lat.toFixed(6);
+      document.getElementById('lngInput').value = lng.toFixed(6);
+
+      if (currentMarker) map.removeLayer(currentMarker);
+      currentMarker = L.marker([lat, lng]).addTo(map);
+      map.setView([lat, lng], 13); // Zoom in closer to current location
+
+      updateInfo();
+    },
+    (err) => {
+      alert('Unable to retrieve location: ' + err.message);
+    }
+  );
+});
+  map.on('click', function (e) {
+    selectedCoords = [e.latlng.lat, e.latlng.lng];
+    if (currentMarker) map.removeLayer(currentMarker);
+    currentMarker = L.marker(e.latlng).addTo(map);
+    updateInfo();
+  });
+
+  document.getElementById('mp3Input').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (file && file.type === 'audio/mpeg') {
+      selectedMP3 = file;
+    } else {
+      selectedMP3 = null;
+    }
+    updateInfo();
+  });
+
+  document.getElementById('addPlaceBtn').addEventListener('click', () => {
+    if (!selectedCoords || !selectedMP3) return;
+
+    const customName = nameInput.value.trim() || selectedMP3.name;
+    const fileName = Date.now() + '_' + selectedMP3.name;
+
+const newPlace = {
+  id: nextId++,
+  name: customName,
+  lat: selectedCoords[0],
+  lng: selectedCoords[1],
+  sound: fileName,
+  radius: selectedDistance,
+  side: "center" // 👈 NOWE
+};
+
+    places.push(newPlace);
+
+    const reader = new FileReader();
+    reader.onload = function () {
+      soundFiles[fileName] = reader.result;
+    };
+    reader.readAsArrayBuffer(selectedMP3);
+
+    selectedMP3 = null;
+    nameInput.value = '';
+    document.getElementById('mp3Input').value = '';
+    updateInfo();
+    refreshPlaceList();
+  });
+document.getElementById('addtrip').addEventListener('click', async () => {
+  const tripTitle = prompt("Podaj nazwę wycieczki:");
+  if (!tripTitle || places.length === 0) {
+    alert("Brak miejsc lub tytułu.");
+    return;
+  }
+
+  await saveTripToFirebase(tripTitle, places, soundFiles);
+});
+
+async function saveTripToFirebase(tripTitle, places, soundFiles) {
+  const uploadedPlaces = [];
+
+  for (const place of places) {
+    const mp3Blob = soundFiles[place.sound]; // sound = np. "zuraw.mp3"
+    if (!mp3Blob) continue;
+
+    // Upload MP3
+    const mp3Ref = ref(storage, 'trips/' + Date.now() + '_' + place.sound);
+    await uploadBytes(mp3Ref, mp3Blob);
+    const mp3Url = await getDownloadURL(mp3Ref);
+
+    uploadedPlaces.push({
+      id: place.id,
+      name: place.name,
+      lat: place.lat,
+      lng: place.lng,
+      soundUrl: mp3Url
+    });
+  }
+
+  // Save trip object
+  const docRef = await addDoc(collection(db, "trips"), {
+    title: tripTitle,
+    places: uploadedPlaces,
+    createdAt: serverTimestamp()
+  });
+
+  alert("Wycieczka zapisana! ID: " + docRef.id);
+}
+
+document.getElementById('exportZipBtn').addEventListener('click', () => {
+  const zip = new JSZip();
+
+  // Create a new array with ids assigned dynamically on export
+function serializePlaces(list) {
+  return list.map(p => ({
+    id: p.id,
+    name: p.name,
+    lat: p.lat,
+    lng: p.lng,
+    sound: p.sound,
+    radius: p.radius,
+    left: serializePlaces(p.left),
+    right: serializePlaces(p.right)
+  }));
+}
+
+const placesWithIds = places.map((p, index) => ({
+  id: index + 1,
+  name: p.name,
+  lat: p.lat,
+  lng: p.lng,
+  sound: p.sound,
+  radius: p.radius,
+  side: p.side // 👈 NOWE
+}));
+
+
+  zip.file("places.json", JSON.stringify(placesWithIds, null, 2));
+  const soundsFolder = zip.folder("sounds");
+
+  for (const [filename, data] of Object.entries(soundFiles)) {
+    soundsFolder.file(filename, data);
+  }
+
+  zip.generateAsync({ type: "blob" }).then(blob => {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "places_with_sounds.zip";
+    link.click();
+  });
+});
+
+  updateInfo();
+  refreshPlaceList();
+loadTrips();
+</script>
+
+</body>
+</html>
