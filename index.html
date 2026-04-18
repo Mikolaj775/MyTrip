@@ -8,195 +8,135 @@
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
   <style>
-    input[type="file"]::-webkit-file-upload-button {
-  margin-right: -1000px; /* lub dowolna duża liczba */
-}
+    input[type="file"]::-webkit-file-upload-button { margin-right: -1000px; }
+    input[type="file"]::file-selector-button { margin-right: -1000px; }
+    input[type="file"] { margin-right: -150px; color: transparent; }
 
-input[type="file"]::file-selector-button {
-  margin-right: -1000px;
-}
-
-input[type="file"] {
-  margin-right: -150px;
-  color: transparent;
-}
-
-    body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: #04a2c9;}
-    #map { height: 60%; width: 80%; position: relative;left: 10%;}
+    body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: #04a2c9; }
+    #map { height: 60%; width: 80%; position: relative; left: 10%; }
     .controls {
+      width: 75%; position: relative; left: 10%; margin-top: 10px;
+      padding: 40px; background: #f0f0f0;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 15px;
+    }
+    .info { font-size: 14px; white-space: pre-line; }
+    input[type="file"], input[type="text"] { font-size: 14px; padding: 4px; }
+    button { padding: 6px 12px; font-size: 14px; }
 
-      width: 75%;
-      position: relative;
-      left: 10%;
-      margin-top: 10px;
-      padding: 40px;
-      background: #f0f0f0;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 15px;
-    }
-    .info {
-      font-size: 14px;
-      white-space: pre-line;
-    }
-    input[type="file"], input[type="text"] {
-      font-size: 14px;
-      padding: 4px;
-    }
-    button {
-      padding: 6px 12px;
-      font-size: 14px;
-    }
     #placeList {
-      width: 79%; position: relative;left: 10%;
-      flex: 1;
-      overflow-y: auto;
-      background: #fafafa;
-      padding: 10px;
-      border-top: 1px solid #ccc;
-      user-select: none;
+      width: 79%; position: relative; left: 10%;
+      flex: 1; overflow-y: auto; background: #fafafa;
+      padding: 10px; border-top: 1px solid #ccc; user-select: none;
     }
     .place-entry {
-  display: flex;
-  width: 100%;
-  margin-bottom: 6px;
-  border: 1px solid #ccc;
-  background: white;
-}
-
-.drop-zone {
-  width: 30%;
-  padding: 10px;
-  text-align: center;
-  background: #eee;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.drop-zone.center {
-  width: 40%;
-  background: #fff;
-  border-left: 1px solid #ccc;
-  border-right: 1px solid #ccc;
-}
-
-.drop-zone:hover {
-  background: #cce5ff;
-}
-
-.drop-zone.left:hover {
-  background: #a8d5ff;
-}
-
-.drop-zone.right:hover {
-  background: #a8d5ff;
-}
-    .place-entry.dragging {
-      opacity: 0.5;
+      position: relative; width: 100%; height: 50px; margin-bottom: 8px;
+      display: flex; border: 1px solid #ccc; background: white;
     }
-    .place-info {
-      flex-grow: 1;
+    .place-box {
+      position: absolute; width: 45%; padding: 8px;
+      background: white; border: 1px solid #ccc; transition: 0.2s;
     }
-    .place-entry strong {
-      display: inline-block;
-      min-width: 100px;
+    .place-center { left: 27.5%; }
+    .place-left   { left: 0;   background: #e6f2ff; }
+    .place-right  { right: 0;  background: #ffe6e6; }
+    .place-entry.drag-left  .place-box { left: 0   !important; }
+    .place-entry.drag-right .place-box { right: 0  !important; }
+
+    .place-box.manual-point { background: #fff8e1; border-color: #f59e0b; }
+    .manual-badge {
+      display: inline-block; background: #f59e0b; color: white;
+      font-size: 10px; font-weight: bold; padding: 1px 5px;
+      border-radius: 4px; margin-left: 6px; vertical-align: middle;
     }
-    #tripList {
 
-      width: 100%;
-      height: 90%;
-      display: none;
+    #manualToggleBtn {
+      padding: 6px 14px; font-size: 14px; border: 2px solid #ccc;
+      background: white; cursor: pointer; border-radius: 4px; transition: 0.2s;
     }
-    #tripcreator {
-      width: 100%;
-      height: 200%;
+    #manualToggleBtn.active { background: #f59e0b; border-color: #d97706; color: white; }
+
+    #coordsSection { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    #tripList    { width: 100%; height: 90%; display: none; }
+    #tripcreator { width: 100%; height: 200%; }
+
+    .place-delete-btn {
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #e53e3e;
+      color: white;
+      border: none;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s, transform 0.15s;
+      z-index: 10;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
-    .place-entry {
-  position: relative;
-  width: 100%;
-  height: 50px;
-  margin-bottom: 8px;
-}
-
-.place-box {
-  position: absolute;
-  width: 45%;
-  padding: 8px;
-  background: white;
-  border: 1px solid #ccc;
-  transition: 0.2s;
-}
-
-/* 👇 środek */
-.place-center {
-  left: 27.5%;
-}
-
-/* 👇 lewa strona */
-.place-left {
-  left: 0;
-  background: #e6f2ff;
-}
-
-/* 👇 prawa strona */
-.place-right {
-  right: 0;
-  background: #ffe6e6;
-}
-
-/* 👇 hover preview */
-.place-entry.drag-left .place-box {
-  left: 0 !important;
-}
-.place-entry.drag-right .place-box {
-  right: 0 !important;
-}
+    .place-entry:hover .place-delete-btn {
+      opacity: 1;
+    }
+    .place-delete-btn:hover {
+      background: #c53030;
+      transform: translateY(-50%) scale(1.15);
+    }
   </style>
 </head>
 <body>
+
 <button id="toggle">WYCIECZKI</button>
+
 <div id="tripList" style="width:79%; margin-left:10%; background:#fff; padding:10px; border:1px solid #ccc;">
-<h3 style="margin-left:10%">Zapisane wycieczki</h3>
-
-
+  <h3 style="margin-left:10%">Zapisane wycieczki</h3>
 </div>
-
-
 
 <div id="tripcreator">
-<div id="map"></div>
+  <div id="map"></div>
 
-<div class="controls">
-  <input type="number" id="latInput" placeholder="Latitude" step="any">
-  <input type="number" id="lngInput" placeholder="Longitude" step="any">
-  <button id="setCoordsBtn">Set Coordinates</button>
-    <button id="useLocationBtn">Use My Location</button>
-  <div class="info" id="info">No coordinates selected\nNo MP3 selected</div>
-  <input type="text" id="placeNameInput" placeholder="Place name" />
-  <input type="file" id="mp3Input" accept=".mp3">
-  <label for="distanceRange">Detection distance (meters):</label>
-<input type="range" id="distanceRange" min="10" max="100" step="1" value="15">
-<span id="distanceValue">15 m</span>
+  <div class="controls">
+    <button id="manualToggleBtn" title="Manual point has no GPS location — it plays when tapped by the user">📌 Manual point: OFF</button>
 
-  <button id="addPlaceBtn">Add Place</button>
-  <button id="exportZipBtn">Export ZIP</button>
-  <button id="addtrip">Upload trip</button>
+    <div id="coordsSection">
+      <input type="number" id="latInput" placeholder="Latitude" step="any">
+      <input type="number" id="lngInput" placeholder="Longitude" step="any">
+      <button id="setCoordsBtn">Set Coordinates</button>
+      <button id="useLocationBtn">Use My Location</button>
+    </div>
+
+    <div class="info" id="info">No coordinates selected\nNo MP3 selected</div>
+    <input type="text" id="placeNameInput" placeholder="Place name" />
+    <input type="file" id="mp3Input" accept=".mp3">
+    <label for="distanceRange">Detection distance (meters):</label>
+    <input type="range" id="distanceRange" min="10" max="100" step="1" value="15">
+    <span id="distanceValue">15 m</span>
+    <button id="addPlaceBtn">Add Place</button>
+    <button id="exportZipBtn">Export ZIP</button>
+    <button id="addtrip">Upload trip</button>
+  </div>
+
+  <div id="placeList"></div>
 </div>
 
-<div id="placeList"></div>
-</div>
+<!-- Firebase module -->
 <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-storage.js";
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+  import { getFirestore, collection, addDoc, getDocs, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL }
+    from "https://www.gstatic.com/firebasejs/11.9.1/firebase-storage.js";
+  import { initializeApp }
+    from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+  import { getAnalytics }
+    from "https://www.gstatic.com/firebasejs/11.9.1/firebase-analytics.js";
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
   const firebaseConfig = {
     apiKey: "AIzaSyBuBf-QqE6q0U2aH7qgRhzbwu2_dTs5K6w",
     authDomain: "mytrip-aa359.firebaseapp.com",
@@ -205,219 +145,308 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstati
     messagingSenderId: "79019124080",
     appId: "1:79019124080:web:3f77f514938a98aa4b5bb5",
     measurementId: "G-CXNERF2JVT"
-
   };
 
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
+  const app     = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
-  const db = getFirestore(app);
-const storage = getStorage(app);
+  const db      = getFirestore(app);
+  const storage = getStorage(app);
 
-import { getDocs, collection } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
-
-async function loadTrips() {
-  const snapshot = await getDocs(collection(db, "trips"));
-  const trips = [];
-
-  snapshot.forEach(doc => {
-    trips.push({ id: doc.id, ...doc.data() });
-  });
-
-  displayTrips(trips); // Napisz funkcję, która pokazuje listę wycieczek w UI
-}
-</script>
-<script>
-  const map = L.map('map', {
-  minZoom: 3,
-  maxZoom: 18,
-  
-  maxBounds: [
-    [-85, -180],  // Southwest corner
-    [85, 180]     // Northeast corner
-  ],
-  maxBoundsViscosity: 10 // Prevent dragging outside bounds
-}).setView([20, 0], 2);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map);
-
-  let selectedCoords = null;
-  let selectedMP3 = null;
-  let currentMarker = null;
-  let places = [];
-  let soundFiles = {};
-  let nextId = 1; // incremental id counter
-
-  const tripcreator = document.getElementById('tripcreator');
-  const tripList = document.getElementById('tripList');
-  const infoEl = document.getElementById('info');
-  const placeListEl = document.getElementById('placeList');
-  const nameInput = document.getElementById('placeNameInput');
-const distanceRange = document.getElementById('distanceRange');
-const distanceValue = document.getElementById('distanceValue');
-
-let selectedDistance = 100;
-
-distanceRange.addEventListener('input', () => {
-  selectedDistance = parseInt(distanceRange.value);
-  distanceValue.textContent = selectedDistance + " m";
-});
-
-  function updateInfo() {
-    const coordText = selectedCoords ? `Lat: ${selectedCoords[0].toFixed(5)}\nLng: ${selectedCoords[1].toFixed(5)}` : 'No coordinates selected';
-    const mp3Text = selectedMP3 ? `MP3: ${selectedMP3.name}` : 'No MP3 selected';
-    infoEl.textContent = `${coordText}\n${mp3Text}`;
+  async function loadTrips() {
+    const snapshot = await getDocs(collection(db, "trips"));
+    const trips = [];
+    snapshot.forEach(doc => trips.push({ id: doc.id, ...doc.data() }));
+    window._displayTrips(trips);
   }
-    navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      selectedCoords = [lat, lng];
 
-      document.getElementById('latInput').value = lat.toFixed(6);
-      document.getElementById('lngInput').value = lng.toFixed(6);
+  window._firebaseAddDoc          = addDoc;
+  window._firebaseCollection      = collection;
+  window._firebaseDb              = db;
+  window._firebaseStorage         = storage;
+  window._firebaseRef             = ref;
+  window._firebaseUploadBytes     = uploadBytes;
+  window._firebaseGetDownloadURL  = getDownloadURL;
+  window._firebaseServerTimestamp = serverTimestamp;
+  window._loadTrips               = loadTrips;
+</script>
 
-      if (currentMarker) map.removeLayer(currentMarker);
-      currentMarker = L.marker([lat, lng]).addTo(map);
-      map.setView([lat, lng], 13); // Zoom in closer to current location
+<script>
+window.addEventListener('load', () => { if (window._loadTrips) window._loadTrips(); });
 
-      updateInfo();
-    },
-    (err) => {
-      alert('Unable to retrieve location: ' + err.message);
-    }
-  );
-  function displayTrips(trips) {
-  const tripListEl = document.getElementById("tripList");
-  tripListEl.innerHTML = "";
+// ── Map setup ────────────────────────────────────────────────────────────────
+const map = L.map('map', {
+  minZoom: 3, maxZoom: 18,
+  maxBounds: [[-85,-180],[85,180]],
+  maxBoundsViscosity: 10
+}).setView([20, 0], 2);
 
-  if (trips.length === 0) {
-    tripListEl.innerHTML = "<p>Brak zapisanych wycieczek.</p>";
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let selectedCoords   = null;
+let selectedMP3      = null;
+let currentMarker    = null;   // temporary marker while picking a location
+let places           = [];
+let soundFiles       = {};
+let nextId           = 1;
+let isManualMode     = false;
+let selectedDistance = 15;
+
+// Map-layer registry: placeId → { marker: L.CircleMarker, circle: L.Circle }
+const placeLayers = {};
+
+// Temporary dashed preview circle shown while adjusting radius / picking coords
+let previewCircle = null;
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const manualToggleBtn = document.getElementById('manualToggleBtn');
+const coordsSection   = document.getElementById('coordsSection');
+const infoEl          = document.getElementById('info');
+const placeListEl     = document.getElementById('placeList');
+const nameInput       = document.getElementById('placeNameInput');
+const distanceRange   = document.getElementById('distanceRange');
+const distanceValue   = document.getElementById('distanceValue');
+
+// ── Colour by path side ───────────────────────────────────────────────────────
+function circleColor(side, manual) {
+  if (manual)            return '#f59e0b';
+  if (side === 'left')   return '#1774CF';
+  if (side === 'right')  return '#BA7517';
+  return '#3F6D11';
+}
+
+// ── Live preview circle (shown while selecting coords / adjusting radius) ─────
+function updatePreviewCircle() {
+  if (previewCircle) { map.removeLayer(previewCircle); previewCircle = null; }
+  if (!selectedCoords || isManualMode) return;
+
+  previewCircle = L.circle(selectedCoords, {
+    radius:      selectedDistance,
+    color:       '#04a2c9',
+    fillColor:   '#04a2c9',
+    fillOpacity: 0.12,
+    weight:      2,
+    dashArray:   '6 4',
+    interactive: false
+  }).addTo(map);
+}
+
+// ── Permanent place layers ────────────────────────────────────────────────────
+function addPlaceLayer(place) {
+  if (place.manual) {
+    placeLayers[place.id] = { marker: null, circle: null };
     return;
   }
 
-  trips.forEach(trip => {
-    const div = document.createElement("div");
-    div.style.border = "1px solid #ddd";
-    div.style.padding = "8px";
-    div.style.marginBottom = "8px";
-    div.style.background = "#f9f9f9";
-div.innerHTML = `
-  <div class="drop-zone left">⬅️</div>
+  const color  = circleColor(place.side, false);
+  const latlng = [place.lat, place.lng];
 
-  <div class="drop-zone center">
-    <strong>${p.name}</strong><br>
-    ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}
-  </div>
+  // Filled detection circle
+  const circle = L.circle(latlng, {
+    radius:      place.radius,
+    color:       color,
+    fillColor:   color,
+    fillOpacity: 0.15,
+    weight:      2,
+    interactive: true
+  }).bindTooltip(`${place.name} (${place.radius} m)`, { sticky: true })
+    .addTo(map);
 
-  <div class="drop-zone right">➡️</div>
-`;
+  // Centre dot
+  const marker = L.circleMarker(latlng, {
+    radius:      5,
+    color:       color,
+    fillColor:   color,
+    fillOpacity: 1,
+    weight:      2,
+    interactive: true
+  }).bindTooltip(place.name, { sticky: true })
+    .addTo(map);
 
-    div.querySelector("button").addEventListener("click", () => {
-      showTripDetails(trip);
-    });
-
-    tripListEl.appendChild(div);
-  });
+  placeLayers[place.id] = { marker, circle };
 }
-function showTripDetails(trip) {
-  const details = trip.places.map(p =>
-    `• ${p.name} [${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}] — <a href="${p.soundUrl}" target="_blank">Odtwórz</a>`
-  ).join("<br/>");
 
-  alert(`Wycieczka: ${trip.title}\n\n${details.replace(/<br\/>/g, '\n').replace(/<[^>]+>/g, '')}`);
+function removePlaceLayer(id) {
+  const lyr = placeLayers[id];
+  if (!lyr) return;
+  if (lyr.circle) map.removeLayer(lyr.circle);
+  if (lyr.marker) map.removeLayer(lyr.marker);
+  delete placeLayers[id];
 }
-document.getElementById('toggle').addEventListener('click', () => {
-  const tripList = document.getElementById('tripList');
-  const tripcreator = document.getElementById('tripcreator');
-  tripList.style.display = tripList.style.display === "none" ? "block" : "none";
-  tripcreator.style.display = tripList.style.display === "none" ? "block" : "none";
+
+function refreshAllPlaceLayers() {
+  Object.keys(placeLayers).forEach(id => removePlaceLayer(Number(id)));
+  places.forEach(p => addPlaceLayer(p));
+}
+
+// ── Info text ─────────────────────────────────────────────────────────────────
+function updateInfo() {
+  let coordText;
+  if (isManualMode) {
+    coordText = '📌 Manual point (no GPS location)';
+  } else {
+    coordText = selectedCoords
+      ? `Lat: ${selectedCoords[0].toFixed(5)}\nLng: ${selectedCoords[1].toFixed(5)}`
+      : 'No coordinates selected';
+  }
+  infoEl.textContent = `${coordText}\n${selectedMP3 ? 'MP3: ' + selectedMP3.name : 'No MP3 selected'}`;
+}
+
+// ── Geolocation on load ───────────────────────────────────────────────────────
+navigator.geolocation.getCurrentPosition(
+  pos => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    selectedCoords = [lat, lng];
+    document.getElementById('latInput').value = lat.toFixed(6);
+    document.getElementById('lngInput').value = lng.toFixed(6);
+    if (currentMarker) map.removeLayer(currentMarker);
+    currentMarker = L.marker([lat, lng]).addTo(map);
+    map.setView([lat, lng], 13);
+    updateInfo();
+    updatePreviewCircle();
+  },
+  err => console.warn('Location unavailable:', err.message)
+);
+
+// ── Distance slider ───────────────────────────────────────────────────────────
+distanceRange.addEventListener('input', () => {
+  selectedDistance = parseInt(distanceRange.value);
+  distanceValue.textContent = selectedDistance + ' m';
+  updatePreviewCircle();
 });
+
+// ── Manual mode toggle ────────────────────────────────────────────────────────
+manualToggleBtn.addEventListener('click', () => {
+  isManualMode = !isManualMode;
+  manualToggleBtn.textContent = `📌 Manual point: ${isManualMode ? 'ON' : 'OFF'}`;
+  manualToggleBtn.classList.toggle('active', isManualMode);
+  coordsSection.style.opacity      = isManualMode ? '0.4' : '1';
+  coordsSection.style.pointerEvents = isManualMode ? 'none' : '';
+  updateInfo();
+  updatePreviewCircle();
+});
+
+// ── Map click → pick location ─────────────────────────────────────────────────
+map.on('click', e => {
+  if (isManualMode) return;
+  selectedCoords = [e.latlng.lat, e.latlng.lng];
+  if (currentMarker) map.removeLayer(currentMarker);
+  currentMarker = L.marker(e.latlng).addTo(map);
+  updateInfo();
+  updatePreviewCircle();
+});
+
+// ── Set coords button ─────────────────────────────────────────────────────────
 document.getElementById('setCoordsBtn').addEventListener('click', () => {
   const lat = parseFloat(document.getElementById('latInput').value);
   const lng = parseFloat(document.getElementById('lngInput').value);
-
   if (isNaN(lat) || isNaN(lng) || lat < -85 || lat > 85 || lng < -180 || lng > 180) {
-    alert('Please enter valid latitude and longitude values.');
-    return;
+    alert('Please enter valid latitude and longitude values.'); return;
   }
-
   selectedCoords = [lat, lng];
-
   if (currentMarker) map.removeLayer(currentMarker);
   currentMarker = L.marker([lat, lng]).addTo(map);
-  map.setView([lat, lng], map.getZoom()); // Optional: center map on new point
+  map.setView([lat, lng], map.getZoom());
+  updateInfo();
+  updatePreviewCircle();
+});
 
+// ── Use My Location ───────────────────────────────────────────────────────────
+document.getElementById('useLocationBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) { alert('Geolocation is not supported.'); return; }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      selectedCoords = [lat, lng];
+      document.getElementById('latInput').value = lat.toFixed(6);
+      document.getElementById('lngInput').value = lng.toFixed(6);
+      if (currentMarker) map.removeLayer(currentMarker);
+      currentMarker = L.marker([lat, lng]).addTo(map);
+      map.setView([lat, lng], 13);
+      updateInfo();
+      updatePreviewCircle();
+    },
+    err => alert('Unable to retrieve location: ' + err.message)
+  );
+});
+
+// ── MP3 picker ────────────────────────────────────────────────────────────────
+document.getElementById('mp3Input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  selectedMP3 = (file && file.type === 'audio/mpeg') ? file : null;
   updateInfo();
 });
+
+// ── Place list ────────────────────────────────────────────────────────────────
 function renderPlace(p, index) {
   const div = document.createElement('div');
   div.className = 'place-entry';
   div.draggable = true;
   div.dataset.index = index;
 
-  let sideClass = "place-center";
-  if (p.side === "left") sideClass = "place-left";
-  if (p.side === "right") sideClass = "place-right";
+  let sideClass = 'place-center';
+  if (p.side === 'left')  sideClass = 'place-left';
+  if (p.side === 'right') sideClass = 'place-right';
+  if (p.manual) sideClass += ' manual-point';
+
+  const manualBadge = p.manual ? '<span class="manual-badge">MANUAL</span>' : '';
+  const coordInfo   = p.manual
+    ? '<span style="font-size:11px;color:#b45309;">▶ plays on tap</span>'
+    : `<span style="font-size:11px;color:#666;">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)} · ${p.radius} m</span>`;
 
   div.innerHTML = `
     <div class="place-box ${sideClass}">
-      <strong>${p.name}</strong><br>
-      ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}
+      <strong>${p.name}</strong>${manualBadge}<br>
+      ${coordInfo}
     </div>
-  `;
+    <button class="place-delete-btn" title="Remove point">✕</button>`;
 
-  // DRAG START
-  div.addEventListener('dragstart', (e) => {
-    e.dataTransfer.setData('text/plain', index);
-  });
-
-  // DRAG OVER → preview
-  div.addEventListener('dragover', (e) => {
-    e.preventDefault();
-
-    const rect = div.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-
-    div.classList.remove('drag-left', 'drag-right');
-
-    if (x < rect.width * 0.3) {
-      div.classList.add('drag-left');
-    } else if (x > rect.width * 0.7) {
-      div.classList.add('drag-right');
-    }
-  });
-
-  // DROP
-  div.addEventListener('drop', (e) => {
-    e.preventDefault();
-
-    const draggedIndex = Number(e.dataTransfer.getData('text/plain'));
-    const dragged = places[draggedIndex];
-
-    const rect = div.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-
-// usuń ze starego miejsca zawsze
-places.splice(draggedIndex, 1);
-
-if (x < rect.width * 0.3) {
-  dragged.side = "left";
-} 
-else if (x > rect.width * 0.7) {
-  dragged.side = "right";
-} 
-else {
-  dragged.side = "center"; // 👈 NOWE
-}
-
-// wrzuć w nowe miejsce
-places.splice(index, 0, dragged);
-
-    div.classList.remove('drag-left', 'drag-right');
+  // Delete button
+  div.querySelector('.place-delete-btn').addEventListener('click', e => {
+    e.stopPropagation(); // don't trigger drag or other events
+    removePlaceLayer(p.id);
+    places = places.filter(pl => pl.id !== p.id);
     refreshPlaceList();
+  });
+
+  // Hover: highlight corresponding map circle
+  div.addEventListener('mouseenter', () => {
+    const lyr = placeLayers[p.id];
+    if (!lyr) return;
+    if (lyr.circle) lyr.circle.setStyle({ weight: 3, fillOpacity: 0.38 });
+    if (lyr.marker) lyr.marker.setStyle({ radius: 8 });
+  });
+  div.addEventListener('mouseleave', () => {
+    const lyr = placeLayers[p.id];
+    if (!lyr) return;
+    if (lyr.circle) lyr.circle.setStyle({ weight: 2, fillOpacity: 0.15 });
+    if (lyr.marker) lyr.marker.setStyle({ radius: 5 });
+  });
+
+  // Drag-to-reorder
+  div.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', index));
+  div.addEventListener('dragover', e => {
+    e.preventDefault();
+    const rect = div.getBoundingClientRect(), x = e.clientX - rect.left;
+    div.classList.remove('drag-left','drag-right');
+    if (x < rect.width * 0.3)      div.classList.add('drag-left');
+    else if (x > rect.width * 0.7) div.classList.add('drag-right');
+  });
+  div.addEventListener('drop', e => {
+    e.preventDefault();
+    const from = Number(e.dataTransfer.getData('text/plain'));
+    const dragged = places[from];
+    const rect = div.getBoundingClientRect(), x = e.clientX - rect.left;
+    places.splice(from, 1);
+    if (x < rect.width * 0.3)      dragged.side = 'left';
+    else if (x > rect.width * 0.7) dragged.side = 'right';
+    else                            dragged.side = 'center';
+    places.splice(index, 0, dragged);
+    div.classList.remove('drag-left','drag-right');
+    refreshPlaceList();
+    refreshAllPlaceLayers(); // repaint with updated side colours
   });
 
   placeListEl.appendChild(div);
@@ -427,167 +456,125 @@ function refreshPlaceList() {
   placeListEl.innerHTML = '';
   places.forEach((p, i) => renderPlace(p, i));
 }
-document.getElementById('useLocationBtn').addEventListener('click', () => {
-  if (!navigator.geolocation) {
-    alert('Geolocation is not supported by your browser.');
-    return;
+
+// ── Add Place ─────────────────────────────────────────────────────────────────
+document.getElementById('addPlaceBtn').addEventListener('click', () => {
+  if (!isManualMode && !selectedCoords) {
+    alert('Please select coordinates on the map or enter them manually.'); return;
   }
+  if (!selectedMP3) { alert('Please select an MP3 file.'); return; }
 
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      selectedCoords = [lat, lng];
+  const customName = nameInput.value.trim() || selectedMP3.name;
+  const fileName   = Date.now() + '_' + selectedMP3.name;
 
-      document.getElementById('latInput').value = lat.toFixed(6);
-      document.getElementById('lngInput').value = lng.toFixed(6);
+  const newPlace = {
+    id:     nextId++,
+    name:   customName,
+    lat:    isManualMode ? 0 : selectedCoords[0],
+    lng:    isManualMode ? 0 : selectedCoords[1],
+    sound:  fileName,
+    radius: selectedDistance,
+    side:   'center',
+    manual: isManualMode
+  };
 
-      if (currentMarker) map.removeLayer(currentMarker);
-      currentMarker = L.marker([lat, lng]).addTo(map);
-      map.setView([lat, lng], 13); // Zoom in closer to current location
+  places.push(newPlace);
+  addPlaceLayer(newPlace); // draw permanent circle immediately
 
-      updateInfo();
-    },
-    (err) => {
-      alert('Unable to retrieve location: ' + err.message);
-    }
-  );
+  // Clean up the temp preview
+  if (previewCircle) { map.removeLayer(previewCircle); previewCircle = null; }
+  if (currentMarker) { map.removeLayer(currentMarker); currentMarker = null; }
+  selectedCoords = null;
+  document.getElementById('latInput').value  = '';
+  document.getElementById('lngInput').value  = '';
+
+  const reader = new FileReader();
+  reader.onload = () => { soundFiles[fileName] = reader.result; };
+  reader.readAsArrayBuffer(selectedMP3);
+
+  selectedMP3 = null;
+  nameInput.value = '';
+  document.getElementById('mp3Input').value = '';
+  updateInfo();
+  refreshPlaceList();
 });
-  map.on('click', function (e) {
-    selectedCoords = [e.latlng.lat, e.latlng.lng];
-    if (currentMarker) map.removeLayer(currentMarker);
-    currentMarker = L.marker(e.latlng).addTo(map);
-    updateInfo();
+
+// ── Firebase trip list ────────────────────────────────────────────────────────
+window._displayTrips = function(trips) {
+  const el = document.getElementById('tripList');
+  el.innerHTML = '';
+  if (!trips.length) { el.innerHTML = '<p>Brak zapisanych wycieczek.</p>'; return; }
+  trips.forEach(trip => {
+    const div = document.createElement('div');
+    div.style.cssText = 'border:1px solid #ddd;padding:8px;margin-bottom:8px;background:#f9f9f9;';
+    div.innerHTML = `<strong>${trip.title || trip.id}</strong>
+      <button onclick="showTripDetails(${JSON.stringify(trip).replace(/"/g,'&quot;')})">Details</button>`;
+    el.appendChild(div);
   });
-
-  document.getElementById('mp3Input').addEventListener('change', function (e) {
-    const file = e.target.files[0];
-    if (file && file.type === 'audio/mpeg') {
-      selectedMP3 = file;
-    } else {
-      selectedMP3 = null;
-    }
-    updateInfo();
-  });
-
-  document.getElementById('addPlaceBtn').addEventListener('click', () => {
-    if (!selectedCoords || !selectedMP3) return;
-
-    const customName = nameInput.value.trim() || selectedMP3.name;
-    const fileName = Date.now() + '_' + selectedMP3.name;
-
-const newPlace = {
-  id: nextId++,
-  name: customName,
-  lat: selectedCoords[0],
-  lng: selectedCoords[1],
-  sound: fileName,
-  radius: selectedDistance,
-  side: "center" // 👈 NOWE
 };
 
-    places.push(newPlace);
+window.showTripDetails = function(trip) {
+  if (!trip || !trip.places) { alert('No details available.'); return; }
+  const details = trip.places.map(p =>
+    `• ${p.name} [${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}]`
+  ).join('\n');
+  alert(`Wycieczka: ${trip.title}\n\n${details}`);
+};
 
-    const reader = new FileReader();
-    reader.onload = function () {
-      soundFiles[fileName] = reader.result;
-    };
-    reader.readAsArrayBuffer(selectedMP3);
+// ── Toggle creator / trips view ───────────────────────────────────────────────
+document.getElementById('toggle').addEventListener('click', () => {
+  const tl = document.getElementById('tripList');
+  const tc = document.getElementById('tripcreator');
+  tl.style.display = tl.style.display === 'none' ? 'block' : 'none';
+  tc.style.display = tl.style.display === 'none'  ? 'block' : 'none';
+});
 
-    selectedMP3 = null;
-    nameInput.value = '';
-    document.getElementById('mp3Input').value = '';
-    updateInfo();
-    refreshPlaceList();
-  });
+// ── Upload trip ───────────────────────────────────────────────────────────────
 document.getElementById('addtrip').addEventListener('click', async () => {
-  const tripTitle = prompt("Podaj nazwę wycieczki:");
-  if (!tripTitle || places.length === 0) {
-    alert("Brak miejsc lub tytułu.");
-    return;
-  }
-
+  const tripTitle = prompt('Podaj nazwę wycieczki:');
+  if (!tripTitle || !places.length) { alert('Brak miejsc lub tytułu.'); return; }
   await saveTripToFirebase(tripTitle, places, soundFiles);
 });
 
 async function saveTripToFirebase(tripTitle, places, soundFiles) {
+  if (!window._firebaseAddDoc) { alert('Firebase not ready yet.'); return; }
   const uploadedPlaces = [];
-
   for (const place of places) {
-    const mp3Blob = soundFiles[place.sound]; // sound = np. "zuraw.mp3"
-    if (!mp3Blob) continue;
-
-    // Upload MP3
-    const mp3Ref = ref(storage, 'trips/' + Date.now() + '_' + place.sound);
-    await uploadBytes(mp3Ref, mp3Blob);
-    const mp3Url = await getDownloadURL(mp3Ref);
-
-    uploadedPlaces.push({
-      id: place.id,
-      name: place.name,
-      lat: place.lat,
-      lng: place.lng,
-      soundUrl: mp3Url
-    });
+    const blob = soundFiles[place.sound];
+    if (!blob) continue;
+    const r   = window._firebaseRef(window._firebaseStorage, 'trips/' + Date.now() + '_' + place.sound);
+    await window._firebaseUploadBytes(r, blob);
+    const url = await window._firebaseGetDownloadURL(r);
+    uploadedPlaces.push({ id: place.id, name: place.name, lat: place.lat, lng: place.lng, soundUrl: url, manual: place.manual || false });
   }
-
-  // Save trip object
-  const docRef = await addDoc(collection(db, "trips"), {
-    title: tripTitle,
-    places: uploadedPlaces,
-    createdAt: serverTimestamp()
-  });
-
-  alert("Wycieczka zapisana! ID: " + docRef.id);
+  const docRef = await window._firebaseAddDoc(
+    window._firebaseCollection(window._firebaseDb, 'trips'),
+    { title: tripTitle, places: uploadedPlaces, createdAt: window._firebaseServerTimestamp() }
+  );
+  alert('Wycieczka zapisana! ID: ' + docRef.id);
 }
 
+// ── Export ZIP ────────────────────────────────────────────────────────────────
 document.getElementById('exportZipBtn').addEventListener('click', () => {
   const zip = new JSZip();
-
-  // Create a new array with ids assigned dynamically on export
-function serializePlaces(list) {
-  return list.map(p => ({
-    id: p.id,
-    name: p.name,
-    lat: p.lat,
-    lng: p.lng,
-    sound: p.sound,
-    radius: p.radius,
-    left: serializePlaces(p.left),
-    right: serializePlaces(p.right)
+  const data = places.map((p, i) => ({
+    id: i+1, name: p.name, lat: p.lat, lng: p.lng,
+    sound: p.sound, radius: p.radius, side: p.side, manual: p.manual || false
   }));
-}
-
-const placesWithIds = places.map((p, index) => ({
-  id: index + 1,
-  name: p.name,
-  lat: p.lat,
-  lng: p.lng,
-  sound: p.sound,
-  radius: p.radius,
-  side: p.side // 👈 NOWE
-}));
-
-
-  zip.file("places.json", JSON.stringify(placesWithIds, null, 2));
-  const soundsFolder = zip.folder("sounds");
-
-  for (const [filename, data] of Object.entries(soundFiles)) {
-    soundsFolder.file(filename, data);
-  }
-
-  zip.generateAsync({ type: "blob" }).then(blob => {
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "places_with_sounds.zip";
-    link.click();
+  zip.file('places.json', JSON.stringify(data, null, 2));
+  const sf = zip.folder('sounds');
+  for (const [fn, d] of Object.entries(soundFiles)) sf.file(fn, d);
+  zip.generateAsync({ type: 'blob' }).then(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'places_with_sounds.zip';
+    a.click();
   });
 });
 
-  updateInfo();
-  refreshPlaceList();
-loadTrips();
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateInfo();
+refreshPlaceList();
 </script>
-
 </body>
 </html>
